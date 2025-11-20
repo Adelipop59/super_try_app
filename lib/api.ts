@@ -118,6 +118,113 @@ export interface DashboardStats {
   balance: number
 }
 
+// Procedure interfaces
+export interface Procedure {
+  id: string
+  campaignId: string
+  title: string
+  description: string
+  order: number
+  isRequired: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateProcedureData {
+  title: string
+  description: string
+  order: number
+  isRequired?: boolean
+}
+
+export interface UpdateProcedureData {
+  title?: string
+  description?: string
+  order?: number
+  isRequired?: boolean
+}
+
+// Distribution interfaces
+export type DistributionType = 'RECURRING' | 'SPECIFIC_DATE'
+
+export interface Distribution {
+  id: string
+  campaignId: string
+  type: DistributionType
+  dayOfWeek?: number | null
+  dayName?: string | null
+  specificDate?: string | null
+  maxUnits: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateDistributionData {
+  type: DistributionType
+  dayOfWeek?: number
+  specificDate?: string
+  maxUnits: number
+  isActive?: boolean
+}
+
+export interface UpdateDistributionData {
+  type?: DistributionType
+  dayOfWeek?: number
+  specificDate?: string
+  maxUnits?: number
+  isActive?: boolean
+}
+
+// Procedure Template interfaces
+export type StepType = 'TEXT' | 'PHOTO' | 'VIDEO' | 'CHECKLIST' | 'RATING' | 'PRICE_VALIDATION'
+
+export interface StepTemplate {
+  id: string
+  title: string
+  description?: string
+  type: StepType
+  order: number
+  isRequired: boolean
+  checklistItems?: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProcedureTemplate {
+  id: string
+  sellerId: string
+  name: string
+  title: string
+  description: string
+  steps: StepTemplate[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateStepTemplateData {
+  title: string
+  description?: string
+  type?: StepType
+  order: number
+  isRequired?: boolean
+  checklistItems?: string[]
+}
+
+export interface CreateProcedureTemplateData {
+  name: string
+  title: string
+  description: string
+  steps?: CreateStepTemplateData[]
+}
+
+export interface UpdateProcedureTemplateData {
+  name?: string
+  title?: string
+  description?: string
+  steps?: CreateStepTemplateData[]
+}
+
 class ApiClient {
   private baseUrl: string
   private token: string | null = null
@@ -150,9 +257,9 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     }
 
     if (this.token) {
@@ -232,8 +339,6 @@ class ApiClient {
       productId: string
       quantity: number
       expectedPrice?: number
-      priceRangeMin?: number
-      priceRangeMax?: number
     }[]
   }): Promise<Campaign> {
     return this.request<Campaign>('/campaigns', {
@@ -343,6 +448,114 @@ class ApiClient {
       totalProducts: products.length,
       balance
     }
+  }
+
+  // Procedures endpoints
+  async getProcedures(campaignId: string): Promise<Procedure[]> {
+    return this.request<Procedure[]>(`/campaigns/${campaignId}/procedures`)
+  }
+
+  async getProcedure(campaignId: string, procedureId: string): Promise<Procedure> {
+    return this.request<Procedure>(`/campaigns/${campaignId}/procedures/${procedureId}`)
+  }
+
+  async createProcedure(campaignId: string, data: CreateProcedureData): Promise<Procedure> {
+    return this.request<Procedure>(`/campaigns/${campaignId}/procedures`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateProcedure(campaignId: string, procedureId: string, data: UpdateProcedureData): Promise<Procedure> {
+    return this.request<Procedure>(`/campaigns/${campaignId}/procedures/${procedureId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteProcedure(campaignId: string, procedureId: string): Promise<{ message: string }> {
+    return this.request(`/campaigns/${campaignId}/procedures/${procedureId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async reorderProcedures(campaignId: string, procedureIds: string[]): Promise<Procedure[]> {
+    return this.request<Procedure[]>(`/campaigns/${campaignId}/procedures/reorder`, {
+      method: 'PATCH',
+      body: JSON.stringify({ procedureIds }),
+    })
+  }
+
+  // Distributions endpoints
+  async getDistributions(campaignId: string): Promise<Distribution[]> {
+    return this.request<Distribution[]>(`/campaigns/${campaignId}/distributions`)
+  }
+
+  async getDistribution(campaignId: string, distributionId: string): Promise<Distribution> {
+    return this.request<Distribution>(`/campaigns/${campaignId}/distributions/${distributionId}`)
+  }
+
+  async createDistribution(campaignId: string, data: CreateDistributionData): Promise<Distribution> {
+    return this.request<Distribution>(`/campaigns/${campaignId}/distributions`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async createDistributions(campaignId: string, distributions: CreateDistributionData[]): Promise<Distribution[]> {
+    return this.request<Distribution[]>(`/campaigns/${campaignId}/distributions/batch`, {
+      method: 'POST',
+      body: JSON.stringify(distributions),
+    })
+  }
+
+  async updateDistribution(campaignId: string, distributionId: string, data: UpdateDistributionData): Promise<Distribution> {
+    return this.request<Distribution>(`/campaigns/${campaignId}/distributions/${distributionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteDistribution(campaignId: string, distributionId: string): Promise<{ message: string }> {
+    return this.request(`/campaigns/${campaignId}/distributions/${distributionId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Procedure Templates endpoints
+  async getProcedureTemplates(): Promise<ProcedureTemplate[]> {
+    return this.request<ProcedureTemplate[]>('/procedure-templates')
+  }
+
+  async getProcedureTemplate(id: string): Promise<ProcedureTemplate> {
+    return this.request<ProcedureTemplate>(`/procedure-templates/${id}`)
+  }
+
+  async createProcedureTemplate(data: CreateProcedureTemplateData): Promise<ProcedureTemplate> {
+    return this.request<ProcedureTemplate>('/procedure-templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateProcedureTemplate(id: string, data: UpdateProcedureTemplateData): Promise<ProcedureTemplate> {
+    return this.request<ProcedureTemplate>(`/procedure-templates/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteProcedureTemplate(id: string): Promise<{ message: string }> {
+    return this.request(`/procedure-templates/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async copyTemplateToCampaign(templateId: string, campaignId: string, order: number): Promise<Procedure> {
+    return this.request<Procedure>(`/procedure-templates/${templateId}/copy-to-campaign/${campaignId}`, {
+      method: 'POST',
+      body: JSON.stringify({ order }),
+    })
   }
 }
 

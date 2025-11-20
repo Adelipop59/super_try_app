@@ -9,6 +9,7 @@ import {
   FileIcon,
   HelpCircleIcon,
   LayoutDashboardIcon,
+  ListChecksIcon,
   MegaphoneIcon,
   PackageIcon,
   SearchIcon,
@@ -43,6 +44,11 @@ const proNavMain = [
     title: "Campaigns",
     url: "/dashboard/campaigns",
     icon: MegaphoneIcon,
+  },
+  {
+    title: "Procedures",
+    url: "/dashboard/procedures",
+    icon: ListChecksIcon,
   },
   {
     title: "Products",
