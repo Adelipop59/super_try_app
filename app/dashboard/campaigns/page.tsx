@@ -191,6 +191,7 @@ export default function CampaignsPage() {
         totalSlots: number
         startDate?: string
         endDate?: string
+        productId?: string
       } = {
         title: createForm.title,
         description: createForm.description || undefined,
@@ -203,6 +204,9 @@ export default function CampaignsPage() {
       if (createForm.endDate) {
         createData.endDate = new Date(createForm.endDate).toISOString()
       }
+      if (createForm.productId) {
+        createData.productId = createForm.productId
+      }
 
       await api.createCampaign(createData)
 
@@ -214,6 +218,7 @@ export default function CampaignsPage() {
         startDate: '',
         endDate: '',
         totalSlots: 10,
+        productId: '',
       })
       fetchCampaigns()
     } catch (error) {
@@ -312,6 +317,7 @@ export default function CampaignsPage() {
                         <TableHeader>
                           <TableRow>
                             <TableHead>Titre</TableHead>
+                            <TableHead>Produit</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Slots</TableHead>
                             <TableHead>Créée le</TableHead>
@@ -327,6 +333,16 @@ export default function CampaignsPage() {
                                   <div className="text-sm text-muted-foreground line-clamp-1">
                                     {campaign.description}
                                   </div>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {campaign.product ? (
+                                  <div className="flex items-center gap-2">
+                                    <PackageIcon className="h-4 w-4 text-muted-foreground" />
+                                    <span className="text-sm">{campaign.product.name}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground">-</span>
                                 )}
                               </TableCell>
                               <TableCell>
@@ -454,6 +470,44 @@ export default function CampaignsPage() {
                 onChange={(e) => setCreateForm({ ...createForm, totalSlots: parseInt(e.target.value) || 1 })}
                 className="h-10"
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="create-productId" className="text-sm font-medium">
+                Produit associé
+              </Label>
+              {products.length === 0 ? (
+                <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground bg-muted/50 rounded-md">
+                  <PackageIcon className="h-4 w-4" />
+                  <span>Aucun produit disponible.</span>
+                  <Link href="/dashboard/products" className="text-primary hover:underline font-medium">
+                    Créer un produit
+                  </Link>
+                </div>
+              ) : (
+                <Select
+                  value={createForm.productId}
+                  onValueChange={(value) => setCreateForm({ ...createForm, productId: value })}
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Sélectionner un produit (optionnel)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        <div className="flex items-center gap-2">
+                          <PackageIcon className="h-4 w-4 text-muted-foreground" />
+                          <span>{product.name}</span>
+                          {product.price && (
+                            <span className="text-muted-foreground">
+                              - {product.price}€
+                            </span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
