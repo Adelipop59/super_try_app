@@ -79,7 +79,13 @@ export default function CampaignsPage() {
     endDate: '',
     totalSlots: 10,
   })
-  const [selectedProducts, setSelectedProducts] = useState<{productId: string, quantity: number}[]>([])
+  const [selectedProducts, setSelectedProducts] = useState<{
+    productId: string
+    quantity: number
+    expectedPrice: number
+    priceRangeMin: number
+    priceRangeMax: number
+  }[]>([])
   const [isCreating, setIsCreating] = useState(false)
 
   // Delete state
@@ -191,7 +197,13 @@ export default function CampaignsPage() {
         totalSlots: number
         startDate?: string
         endDate?: string
-        products?: { productId: string; quantity: number }[]
+        products?: {
+          productId: string
+          quantity: number
+          expectedPrice: number
+          priceRangeMin: number
+          priceRangeMax: number
+        }[]
       } = {
         title: createForm.title,
         description: createForm.description || undefined,
@@ -503,37 +515,95 @@ export default function CampaignsPage() {
                   {selectedProducts.map((sp, index) => {
                     const product = products.find(p => p.id === sp.productId)
                     return (
-                      <div key={index} className="flex items-center gap-2 p-3 bg-muted/50 rounded-md">
-                        <PackageIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <span className="text-sm flex-1 truncate">{product?.name || 'Produit inconnu'}</span>
+                      <div key={index} className="p-3 bg-muted/50 rounded-md space-y-3">
                         <div className="flex items-center gap-2">
-                          <Label htmlFor={`quantity-${index}`} className="text-xs text-muted-foreground">
-                            Qté:
-                          </Label>
-                          <Input
-                            id={`quantity-${index}`}
-                            type="number"
-                            min="1"
-                            value={sp.quantity}
-                            onChange={(e) => {
-                              const newProducts = [...selectedProducts]
-                              newProducts[index].quantity = parseInt(e.target.value) || 1
-                              setSelectedProducts(newProducts)
+                          <PackageIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <span className="text-sm font-medium flex-1 truncate">{product?.name || 'Produit inconnu'}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={() => {
+                              setSelectedProducts(selectedProducts.filter((_, i) => i !== index))
                             }}
-                            className="h-8 w-16 text-sm"
-                          />
+                          >
+                            <XIcon className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => {
-                            setSelectedProducts(selectedProducts.filter((_, i) => i !== index))
-                          }}
-                        >
-                          <XIcon className="h-4 w-4" />
-                        </Button>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label htmlFor={`quantity-${index}`} className="text-xs text-muted-foreground">
+                              Quantité
+                            </Label>
+                            <Input
+                              id={`quantity-${index}`}
+                              type="number"
+                              min="1"
+                              value={sp.quantity}
+                              onChange={(e) => {
+                                const newProducts = [...selectedProducts]
+                                newProducts[index].quantity = parseInt(e.target.value) || 1
+                                setSelectedProducts(newProducts)
+                              }}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`expectedPrice-${index}`} className="text-xs text-muted-foreground">
+                              Prix attendu (€)
+                            </Label>
+                            <Input
+                              id={`expectedPrice-${index}`}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={sp.expectedPrice}
+                              onChange={(e) => {
+                                const newProducts = [...selectedProducts]
+                                newProducts[index].expectedPrice = parseFloat(e.target.value) || 0
+                                setSelectedProducts(newProducts)
+                              }}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`priceRangeMin-${index}`} className="text-xs text-muted-foreground">
+                              Prix min (€)
+                            </Label>
+                            <Input
+                              id={`priceRangeMin-${index}`}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={sp.priceRangeMin}
+                              onChange={(e) => {
+                                const newProducts = [...selectedProducts]
+                                newProducts[index].priceRangeMin = parseFloat(e.target.value) || 0
+                                setSelectedProducts(newProducts)
+                              }}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`priceRangeMax-${index}`} className="text-xs text-muted-foreground">
+                              Prix max (€)
+                            </Label>
+                            <Input
+                              id={`priceRangeMax-${index}`}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={sp.priceRangeMax}
+                              onChange={(e) => {
+                                const newProducts = [...selectedProducts]
+                                newProducts[index].priceRangeMax = parseFloat(e.target.value) || 0
+                                setSelectedProducts(newProducts)
+                              }}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                        </div>
                       </div>
                     )
                   })}
@@ -544,7 +614,15 @@ export default function CampaignsPage() {
                       value=""
                       onValueChange={(value) => {
                         if (value) {
-                          setSelectedProducts([...selectedProducts, { productId: value, quantity: 1 }])
+                          const product = products.find(p => p.id === value)
+                          const defaultPrice = product?.price || 0
+                          setSelectedProducts([...selectedProducts, {
+                            productId: value,
+                            quantity: 1,
+                            expectedPrice: defaultPrice,
+                            priceRangeMin: defaultPrice * 0.9,
+                            priceRangeMax: defaultPrice * 1.1
+                          }])
                         }
                       }}
                     >
