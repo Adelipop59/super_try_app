@@ -35,8 +35,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const profile = await api.getMe()
       setUser(profile)
-    } catch (error) {
-      console.error('Auth check failed:', error)
+    } catch {
+      // Token invalide ou expiré - nettoyer silencieusement
       api.setToken(null)
       setUser(null)
     } finally {
