@@ -241,7 +241,7 @@ export function ChartAreaInteractive() {
                 />
               </linearGradient>
             </defs>
-            <CartesianGrid vertical={false} />
+            <CartesianGrid vertical={false} stroke="#ccc" />
             <XAxis
               dataKey="date"
               tickLine={false}

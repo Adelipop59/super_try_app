@@ -4,19 +4,17 @@ import * as React from "react"
 import {
   ArrowUpCircleIcon,
   BarChartIcon,
-  CameraIcon,
   ClipboardListIcon,
   DatabaseIcon,
-  FileCodeIcon,
   FileIcon,
-  FileTextIcon,
-  FolderIcon,
   HelpCircleIcon,
   LayoutDashboardIcon,
-  ListIcon,
+  MegaphoneIcon,
+  PackageIcon,
   SearchIcon,
   SettingsIcon,
-  UsersIcon,
+  TestTubeIcon,
+  WalletIcon,
 } from "lucide-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -32,125 +30,108 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { useAuth } from "@/contexts/auth-context"
 
-const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
+// Navigation pour les utilisateurs PRO
+const proNavMain = [
+  {
+    title: "Overview",
+    url: "/dashboard",
+    icon: LayoutDashboardIcon,
   },
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "#",
-      icon: LayoutDashboardIcon,
-    },
-    {
-      title: "Lifecycle",
-      url: "#",
-      icon: ListIcon,
-    },
-    {
-      title: "Analytics",
-      url: "#",
-      icon: BarChartIcon,
-    },
-    {
-      title: "Projects",
-      url: "#",
-      icon: FolderIcon,
-    },
-    {
-      title: "Team",
-      url: "#",
-      icon: UsersIcon,
-    },
-  ],
-  navClouds: [
-    {
-      title: "Capture",
-      icon: CameraIcon,
-      isActive: true,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Proposal",
-      icon: FileTextIcon,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Prompts",
-      icon: FileCodeIcon,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "#",
-      icon: SettingsIcon,
-    },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: HelpCircleIcon,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: SearchIcon,
-    },
-  ],
-  documents: [
-    {
-      name: "Data Library",
-      url: "#",
-      icon: DatabaseIcon,
-    },
-    {
-      name: "Reports",
-      url: "#",
-      icon: ClipboardListIcon,
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-      icon: FileIcon,
-    },
-  ],
-}
+  {
+    title: "Campaigns",
+    url: "/dashboard/campaigns",
+    icon: MegaphoneIcon,
+  },
+  {
+    title: "Products",
+    url: "/dashboard/products",
+    icon: PackageIcon,
+  },
+  {
+    title: "Analytics",
+    url: "/dashboard/analytics",
+    icon: BarChartIcon,
+  },
+  {
+    title: "Wallet",
+    url: "/dashboard/wallet",
+    icon: WalletIcon,
+  },
+]
+
+// Navigation pour les utilisateurs standard (testeurs)
+const userNavMain = [
+  {
+    title: "Overview",
+    url: "/dashboard",
+    icon: LayoutDashboardIcon,
+  },
+  {
+    title: "Sessions",
+    url: "/dashboard/sessions",
+    icon: TestTubeIcon,
+  },
+  {
+    title: "Wallet",
+    url: "/dashboard/wallet",
+    icon: WalletIcon,
+  },
+]
+
+const navSecondary = [
+  {
+    title: "Settings",
+    url: "/dashboard/settings",
+    icon: SettingsIcon,
+  },
+  {
+    title: "Get Help",
+    url: "/help",
+    icon: HelpCircleIcon,
+  },
+  {
+    title: "Search",
+    url: "#",
+    icon: SearchIcon,
+  },
+]
+
+const documents = [
+  {
+    name: "Data Library",
+    url: "#",
+    icon: DatabaseIcon,
+  },
+  {
+    name: "Reports",
+    url: "#",
+    icon: ClipboardListIcon,
+  },
+  {
+    name: "Word Assistant",
+    url: "#",
+    icon: FileIcon,
+  },
+]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user } = useAuth()
+
+  const userData = {
+    name: user?.firstName && user?.lastName
+      ? `${user.firstName} ${user.lastName}`
+      : user?.email?.split('@')[0] || 'User',
+    email: user?.email || '',
+    avatar: user?.avatar || '/avatars/shadcn.jpg',
+  }
+
+  // Sélectionner la navigation en fonction du rôle
+  const navItems = user?.role === 'PRO' || user?.role === 'ADMIN'
+    ? proNavMain
+    : userNavMain
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -158,23 +139,23 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
+              className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
-              <a href="#">
+              <a href="/dashboard">
                 <ArrowUpCircleIcon className="h-5 w-5" />
-                <span className="text-base font-semibold">Acme Inc.</span>
+                <span className="text-base font-semibold">SuperTry</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain items={navItems} />
+        <NavDocuments items={documents} />
+        <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={userData} />
       </SidebarFooter>
     </Sidebar>
   )

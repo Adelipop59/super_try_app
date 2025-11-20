@@ -10,6 +10,7 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAuth } from "@/contexts/auth-context";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -182,7 +183,28 @@ const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
 PasswordInput.displayName = "PasswordInput";
 
 function SignInForm() {
-  const handleSignIn = (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); console.log("UI: Sign In form submitted"); };
+  const { signIn } = useAuth();
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setLoading(true);
+
+    const formData = new FormData(event.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    try {
+      await signIn({ email, password });
+    } catch (err: any) {
+      setError(err.message || "Erreur lors de la connexion");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <form onSubmit={handleSignIn} autoComplete="on" className="flex flex-col gap-8">
       <div className="flex flex-col items-center gap-2 text-center">
@@ -190,16 +212,44 @@ function SignInForm() {
         <p className="text-balance text-sm text-muted-foreground">Enter your email below to sign in</p>
       </div>
       <div className="grid gap-4">
+        {error && (
+          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
+            {error}
+          </div>
+        )}
         <div className="grid gap-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" placeholder="m@example.com" required autoComplete="email" /></div>
         <PasswordInput name="password" label="Password" required autoComplete="current-password" placeholder="Password" />
-        <Button type="submit" variant="outline" className="mt-2">Sign In</Button>
+        <Button type="submit" variant="outline" className="mt-2" disabled={loading}>
+          {loading ? "Connexion..." : "Sign In"}
+        </Button>
       </div>
     </form>
   );
 }
 
 function SignUpForm() {
-  const handleSignUp = (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); console.log("UI: Sign Up form submitted"); };
+  const { signUp } = useAuth();
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSignUp = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setLoading(true);
+
+    const formData = new FormData(event.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    try {
+      await signUp({ email, password, role: "USER" });
+    } catch (err: any) {
+      setError(err.message || "Erreur lors de l'inscription");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <form onSubmit={handleSignUp} autoComplete="on" className="flex flex-col gap-8">
       <div className="flex flex-col items-center gap-2 text-center">
@@ -207,10 +257,16 @@ function SignUpForm() {
         <p className="text-balance text-sm text-muted-foreground">Enter your details below to sign up</p>
       </div>
       <div className="grid gap-4">
-        <div className="grid gap-1"><Label htmlFor="name">Full Name</Label><Input id="name" name="name" type="text" placeholder="John Doe" required autoComplete="name" /></div>
+        {error && (
+          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
+            {error}
+          </div>
+        )}
         <div className="grid gap-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" placeholder="m@example.com" required autoComplete="email" /></div>
-        <PasswordInput name="password" label="Password" required autoComplete="new-password" placeholder="Password"/>
-        <Button type="submit" variant="outline" className="mt-2">Sign Up</Button>
+        <PasswordInput name="password" label="Password" required autoComplete="new-password" placeholder="Password" minLength={6} />
+        <Button type="submit" variant="outline" className="mt-2" disabled={loading}>
+          {loading ? "Création..." : "Sign Up"}
+        </Button>
       </div>
     </form>
   );
