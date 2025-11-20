@@ -811,65 +811,75 @@ export default function CampaignsPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {selectedProducts.map((sp, index) => {
-                      const product = products.find(p => p.id === sp.productId)
-                      return (
-                        <div key={index} className="p-3 bg-muted/50 rounded-md space-y-3">
-                          <div className="flex items-center gap-2">
-                            <PackageIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            <span className="text-sm font-medium flex-1 truncate">{product?.name || 'Produit inconnu'}</span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              onClick={() => {
-                                setSelectedProducts(selectedProducts.filter((_, i) => i !== index))
-                              }}
-                            >
-                              <XIcon className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label htmlFor={`quantity-${index}`} className="text-xs text-muted-foreground">
-                                Quantité
-                              </Label>
-                              <Input
-                                id={`quantity-${index}`}
-                                type="number"
-                                min="1"
-                                value={sp.quantity}
-                                onChange={(e) => {
-                                  const newProducts = [...selectedProducts]
-                                  newProducts[index].quantity = parseInt(e.target.value) || 1
-                                  setSelectedProducts(newProducts)
-                                }}
-                                className="h-8 text-sm"
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor={`expectedPrice-${index}`} className="text-xs text-muted-foreground">
-                                Prix (€)
-                              </Label>
-                              <Input
-                                id={`expectedPrice-${index}`}
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={sp.expectedPrice}
-                                onChange={(e) => {
-                                  const newProducts = [...selectedProducts]
-                                  newProducts[index].expectedPrice = parseFloat(e.target.value) || 0
-                                  setSelectedProducts(newProducts)
-                                }}
-                                className="h-8 text-sm"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
+                    {selectedProducts.length > 0 && (
+                      <div className="overflow-hidden rounded-lg border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Produit</TableHead>
+                              <TableHead className="w-[80px]">Qté</TableHead>
+                              <TableHead className="w-[100px]">Prix</TableHead>
+                              <TableHead className="w-[50px]"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {selectedProducts.map((sp, index) => {
+                              const product = products.find(p => p.id === sp.productId)
+                              return (
+                                <TableRow key={index}>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <PackageIcon className="h-4 w-4 text-muted-foreground" />
+                                      <span className="text-sm font-medium truncate">{product?.name || 'Produit inconnu'}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      value={sp.quantity}
+                                      onChange={(e) => {
+                                        const newProducts = [...selectedProducts]
+                                        newProducts[index].quantity = parseInt(e.target.value) || 1
+                                        setSelectedProducts(newProducts)
+                                      }}
+                                      className="h-8 w-16 text-sm"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      value={sp.expectedPrice}
+                                      onChange={(e) => {
+                                        const newProducts = [...selectedProducts]
+                                        newProducts[index].expectedPrice = parseFloat(e.target.value) || 0
+                                        setSelectedProducts(newProducts)
+                                      }}
+                                      className="h-8 w-20 text-sm"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                      onClick={() => {
+                                        setSelectedProducts(selectedProducts.filter((_, i) => i !== index))
+                                      }}
+                                    >
+                                      <XIcon className="h-4 w-4" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
 
                     {products.filter(p => !selectedProducts.some(sp => sp.productId === p.id)).length > 0 && (
                       <Select
@@ -961,108 +971,108 @@ export default function CampaignsPage() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {distributions.map((dist, index) => (
-                    <div key={index} className="p-4 bg-muted/50 rounded-md space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Distribution {index + 1}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => {
-                            setDistributions(distributions.filter((_, i) => i !== index))
-                          }}
-                        >
-                          <XIcon className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <div className="grid gap-3">
-                        <div className="grid gap-2">
-                          <Label className="text-xs text-muted-foreground">Type</Label>
-                          <Select
-                            value={dist.type}
-                            onValueChange={(value: DistributionType) => {
-                              const newDist = [...distributions]
-                              newDist[index].type = value
-                              if (value === 'RECURRING') {
-                                newDist[index].dayOfWeek = 1
-                                delete newDist[index].specificDate
-                              } else {
-                                delete newDist[index].dayOfWeek
-                                newDist[index].specificDate = ''
-                              }
-                              setDistributions(newDist)
-                            }}
-                          >
-                            <SelectTrigger className="h-9">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="RECURRING">Récurrent (jour de la semaine)</SelectItem>
-                              <SelectItem value="SPECIFIC_DATE">Date spécifique</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {dist.type === 'RECURRING' ? (
-                          <div className="grid gap-2">
-                            <Label className="text-xs text-muted-foreground">Jour de la semaine</Label>
+                <div className="overflow-hidden rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Jour/Date</TableHead>
+                        <TableHead className="w-[80px]">Max</TableHead>
+                        <TableHead className="w-[50px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {distributions.map((dist, index) => (
+                        <TableRow key={index}>
+                          <TableCell>
                             <Select
-                              value={String(dist.dayOfWeek ?? 1)}
-                              onValueChange={(value) => {
+                              value={dist.type}
+                              onValueChange={(value: DistributionType) => {
                                 const newDist = [...distributions]
-                                newDist[index].dayOfWeek = parseInt(value)
+                                newDist[index].type = value
+                                if (value === 'RECURRING') {
+                                  newDist[index].dayOfWeek = 1
+                                  delete newDist[index].specificDate
+                                } else {
+                                  delete newDist[index].dayOfWeek
+                                  newDist[index].specificDate = ''
+                                }
                                 setDistributions(newDist)
                               }}
                             >
-                              <SelectTrigger className="h-9">
+                              <SelectTrigger className="h-8 w-[120px]">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {DAYS_OF_WEEK.map((day) => (
-                                  <SelectItem key={day.value} value={String(day.value)}>
-                                    {day.label}
-                                  </SelectItem>
-                                ))}
+                                <SelectItem value="RECURRING">Récurrent</SelectItem>
+                                <SelectItem value="SPECIFIC_DATE">Date</SelectItem>
                               </SelectContent>
                             </Select>
-                          </div>
-                        ) : (
-                          <div className="grid gap-2">
-                            <Label className="text-xs text-muted-foreground">Date</Label>
+                          </TableCell>
+                          <TableCell>
+                            {dist.type === 'RECURRING' ? (
+                              <Select
+                                value={String(dist.dayOfWeek ?? 1)}
+                                onValueChange={(value) => {
+                                  const newDist = [...distributions]
+                                  newDist[index].dayOfWeek = parseInt(value)
+                                  setDistributions(newDist)
+                                }}
+                              >
+                                <SelectTrigger className="h-8 w-[100px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {DAYS_OF_WEEK.map((day) => (
+                                    <SelectItem key={day.value} value={String(day.value)}>
+                                      {day.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Input
+                                type="date"
+                                value={dist.specificDate || ''}
+                                onChange={(e) => {
+                                  const newDist = [...distributions]
+                                  newDist[index].specificDate = e.target.value
+                                  setDistributions(newDist)
+                                }}
+                                className="h-8 w-[130px]"
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>
                             <Input
-                              type="date"
-                              value={dist.specificDate || ''}
+                              type="number"
+                              min="1"
+                              value={dist.maxUnits}
                               onChange={(e) => {
                                 const newDist = [...distributions]
-                                newDist[index].specificDate = e.target.value
+                                newDist[index].maxUnits = parseInt(e.target.value) || 1
                                 setDistributions(newDist)
                               }}
-                              className="h-9"
+                              className="h-8 w-16"
                             />
-                          </div>
-                        )}
-
-                        <div className="grid gap-2">
-                          <Label className="text-xs text-muted-foreground">Unités max.</Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={dist.maxUnits}
-                            onChange={(e) => {
-                              const newDist = [...distributions]
-                              newDist[index].maxUnits = parseInt(e.target.value) || 1
-                              setDistributions(newDist)
-                            }}
-                            className="h-9"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={() => {
+                                setDistributions(distributions.filter((_, i) => i !== index))
+                              }}
+                            >
+                              <XIcon className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </div>
@@ -1095,40 +1105,53 @@ export default function CampaignsPage() {
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        {procedureTemplates.map((template) => (
-                          <div
-                            key={template.id}
-                            className={`p-4 rounded-md border-2 cursor-pointer transition-colors ${
-                              selectedTemplateId === template.id
-                                ? 'border-primary bg-primary/5'
-                                : 'border-muted hover:border-muted-foreground/50'
-                            }`}
-                            onClick={() => setSelectedTemplateId(
-                              selectedTemplateId === template.id ? '' : template.id
-                            )}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="font-medium">{template.name}</div>
-                                <div className="text-sm text-muted-foreground">{template.title}</div>
-                                {template.description && (
-                                  <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                    {template.description}
+                      <div className="overflow-hidden rounded-lg border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Template</TableHead>
+                              <TableHead className="w-[80px]">Étapes</TableHead>
+                              <TableHead className="w-[50px]"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {procedureTemplates.map((template) => (
+                              <TableRow
+                                key={template.id}
+                                className={selectedTemplateId === template.id ? 'bg-primary/5' : ''}
+                              >
+                                <TableCell>
+                                  <div>
+                                    <div className="font-medium">{template.name}</div>
+                                    <div className="text-xs text-muted-foreground">{template.title}</div>
                                   </div>
-                                )}
-                                <div className="mt-2">
-                                  <Badge variant="outline" className="text-xs">
-                                    {template.steps.length} étape{template.steps.length !== 1 ? 's' : ''}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">
+                                    {template.steps.length}
                                   </Badge>
-                                </div>
-                              </div>
-                              {selectedTemplateId === template.id && (
-                                <CheckIcon className="h-5 w-5 text-primary shrink-0 ml-2" />
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    type="button"
+                                    variant={selectedTemplateId === template.id ? "default" : "ghost"}
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => setSelectedTemplateId(
+                                      selectedTemplateId === template.id ? '' : template.id
+                                    )}
+                                  >
+                                    {selectedTemplateId === template.id ? (
+                                      <CheckIcon className="h-4 w-4" />
+                                    ) : (
+                                      <PlusIcon className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
                     )}
                   </div>
