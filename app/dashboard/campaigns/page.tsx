@@ -6,7 +6,7 @@ import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/auth-context"
-import { api, Campaign, Product } from "@/lib/api"
+import { api, Campaign, Product, CampaignProduct } from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -48,7 +48,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { MoreHorizontalIcon, PlusIcon, PencilIcon, Trash2Icon, AlertTriangleIcon, PackageIcon } from "lucide-react"
+import { MoreHorizontalIcon, PlusIcon, PencilIcon, Trash2Icon, AlertTriangleIcon, PackageIcon, XIcon } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 
@@ -78,8 +78,8 @@ export default function CampaignsPage() {
     startDate: '',
     endDate: '',
     totalSlots: 10,
-    productId: '',
   })
+  const [selectedProducts, setSelectedProducts] = useState<{productId: string, quantity: number}[]>([])
   const [isCreating, setIsCreating] = useState(false)
 
   // Delete state
@@ -191,7 +191,7 @@ export default function CampaignsPage() {
         totalSlots: number
         startDate?: string
         endDate?: string
-        productId?: string
+        products?: { productId: string; quantity: number }[]
       } = {
         title: createForm.title,
         description: createForm.description || undefined,
@@ -204,8 +204,8 @@ export default function CampaignsPage() {
       if (createForm.endDate) {
         createData.endDate = new Date(createForm.endDate).toISOString()
       }
-      if (createForm.productId) {
-        createData.productId = createForm.productId
+      if (selectedProducts.length > 0) {
+        createData.products = selectedProducts
       }
 
       await api.createCampaign(createData)
@@ -218,8 +218,8 @@ export default function CampaignsPage() {
         startDate: '',
         endDate: '',
         totalSlots: 10,
-        productId: '',
       })
+      setSelectedProducts([])
       fetchCampaigns()
     } catch (error) {
       console.error('Failed to create campaign:', error)
@@ -336,10 +336,24 @@ export default function CampaignsPage() {
                                 )}
                               </TableCell>
                               <TableCell>
-                                {campaign.product ? (
-                                  <div className="flex items-center gap-2">
-                                    <PackageIcon className="h-4 w-4 text-muted-foreground" />
-                                    <span className="text-sm">{campaign.product.name}</span>
+                                {campaign.products && campaign.products.length > 0 ? (
+                                  <div className="flex flex-col gap-1">
+                                    {campaign.products.slice(0, 2).map((cp, idx) => (
+                                      <div key={idx} className="flex items-center gap-2">
+                                        <PackageIcon className="h-3 w-3 text-muted-foreground" />
+                                        <span className="text-sm truncate max-w-[150px]">
+                                          {cp.product?.name || 'Produit'}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                          x{cp.quantity}
+                                        </span>
+                                      </div>
+                                    ))}
+                                    {campaign.products.length > 2 && (
+                                      <span className="text-xs text-muted-foreground">
+                                        +{campaign.products.length - 2} autre(s)
+                                      </span>
+                                    )}
                                   </div>
                                 ) : (
                                   <span className="text-sm text-muted-foreground">-</span>
@@ -472,8 +486,8 @@ export default function CampaignsPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="create-productId" className="text-sm font-medium">
-                Produit associé
+              <Label className="text-sm font-medium">
+                Produits associés
               </Label>
               {products.length === 0 ? (
                 <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground bg-muted/50 rounded-md">
@@ -484,29 +498,85 @@ export default function CampaignsPage() {
                   </Link>
                 </div>
               ) : (
-                <Select
-                  value={createForm.productId}
-                  onValueChange={(value) => setCreateForm({ ...createForm, productId: value })}
-                >
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Sélectionner un produit (optionnel)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
+                <div className="space-y-3">
+                  {/* Liste des produits sélectionnés */}
+                  {selectedProducts.map((sp, index) => {
+                    const product = products.find(p => p.id === sp.productId)
+                    return (
+                      <div key={index} className="flex items-center gap-2 p-3 bg-muted/50 rounded-md">
+                        <PackageIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm flex-1 truncate">{product?.name || 'Produit inconnu'}</span>
                         <div className="flex items-center gap-2">
-                          <PackageIcon className="h-4 w-4 text-muted-foreground" />
-                          <span>{product.name}</span>
-                          {product.price && (
-                            <span className="text-muted-foreground">
-                              - {product.price}€
-                            </span>
-                          )}
+                          <Label htmlFor={`quantity-${index}`} className="text-xs text-muted-foreground">
+                            Qté:
+                          </Label>
+                          <Input
+                            id={`quantity-${index}`}
+                            type="number"
+                            min="1"
+                            value={sp.quantity}
+                            onChange={(e) => {
+                              const newProducts = [...selectedProducts]
+                              newProducts[index].quantity = parseInt(e.target.value) || 1
+                              setSelectedProducts(newProducts)
+                            }}
+                            className="h-8 w-16 text-sm"
+                          />
                         </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => {
+                            setSelectedProducts(selectedProducts.filter((_, i) => i !== index))
+                          }}
+                        >
+                          <XIcon className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )
+                  })}
+
+                  {/* Sélecteur pour ajouter un nouveau produit */}
+                  {products.filter(p => !selectedProducts.some(sp => sp.productId === p.id)).length > 0 && (
+                    <Select
+                      value=""
+                      onValueChange={(value) => {
+                        if (value) {
+                          setSelectedProducts([...selectedProducts, { productId: value, quantity: 1 }])
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Ajouter un produit..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products
+                          .filter(p => !selectedProducts.some(sp => sp.productId === p.id))
+                          .map((product) => (
+                            <SelectItem key={product.id} value={product.id}>
+                              <div className="flex items-center gap-2">
+                                <PackageIcon className="h-4 w-4 text-muted-foreground" />
+                                <span>{product.name}</span>
+                                {product.price && (
+                                  <span className="text-muted-foreground">
+                                    - {product.price}€
+                                  </span>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {selectedProducts.length === products.length && selectedProducts.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Tous les produits ont été ajoutés
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           </div>

@@ -59,6 +59,15 @@ export interface Session {
   }
 }
 
+export interface CampaignProduct {
+  productId: string
+  quantity: number
+  expectedPrice?: number
+  priceRangeMin?: number
+  priceRangeMax?: number
+  product?: Product
+}
+
 export interface Campaign {
   id: string
   title: string
@@ -68,8 +77,7 @@ export interface Campaign {
   usedSlots: number
   startDate?: string
   endDate?: string
-  productId?: string
-  product?: Product
+  products?: CampaignProduct[]
   createdAt: string
   updatedAt: string
 }
@@ -220,7 +228,13 @@ class ApiClient {
     startDate?: string
     endDate?: string
     totalSlots: number
-    productId?: string
+    products?: {
+      productId: string
+      quantity: number
+      expectedPrice?: number
+      priceRangeMin?: number
+      priceRangeMax?: number
+    }[]
   }): Promise<Campaign> {
     return this.request<Campaign>('/campaigns', {
       method: 'POST',
