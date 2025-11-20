@@ -555,90 +555,100 @@ export default function CampaignsPage() {
                         </Button>
                       </div>
                     ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Titre</TableHead>
-                            <TableHead>Produit</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Slots</TableHead>
-                            <TableHead>Créée le</TableHead>
-                            <TableHead className="w-[50px]"></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {campaigns.map((campaign) => (
-                            <TableRow key={campaign.id}>
-                              <TableCell>
-                                <div className="font-medium">{campaign.title}</div>
-                                {campaign.description && (
-                                  <div className="text-sm text-muted-foreground line-clamp-1">
-                                    {campaign.description}
+                      <div className="overflow-hidden rounded-lg border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Campagne</TableHead>
+                              <TableHead>Produits</TableHead>
+                              <TableHead>Période</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead className="w-[50px]"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {campaigns.map((campaign) => (
+                              <TableRow key={campaign.id} className="h-[72px]">
+                                <TableCell className="py-3">
+                                  <div className="space-y-1">
+                                    <div className="font-medium">{campaign.title}</div>
+                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                      <span>{campaign.usedSlots}/{campaign.totalSlots} slots</span>
+                                      <span>Créée le {new Date(campaign.createdAt).toLocaleDateString('fr-FR')}</span>
+                                    </div>
                                   </div>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {campaign.products && campaign.products.length > 0 ? (
-                                  <div className="flex flex-col gap-1">
-                                    {campaign.products.slice(0, 2).map((cp, idx) => (
-                                      <div key={idx} className="flex items-center gap-2">
-                                        <PackageIcon className="h-3 w-3 text-muted-foreground" />
-                                        <span className="text-sm truncate max-w-[150px]">
-                                          {cp.product?.name || 'Produit'}
-                                        </span>
+                                </TableCell>
+                                <TableCell className="py-3">
+                                  {campaign.products && campaign.products.length > 0 ? (
+                                    <div className="flex flex-col gap-1">
+                                      {campaign.products.slice(0, 2).map((cp, idx) => (
+                                        <div key={idx} className="flex items-center gap-2">
+                                          <PackageIcon className="h-3 w-3 text-muted-foreground" />
+                                          <span className="text-sm truncate max-w-[150px]">
+                                            {cp.product?.name || 'Produit'}
+                                          </span>
+                                          <Badge variant="outline" className="text-xs px-1">
+                                            x{cp.quantity}
+                                          </Badge>
+                                        </div>
+                                      ))}
+                                      {campaign.products.length > 2 && (
                                         <span className="text-xs text-muted-foreground">
-                                          x{cp.quantity}
+                                          +{campaign.products.length - 2} autre(s)
                                         </span>
-                                      </div>
-                                    ))}
-                                    {campaign.products.length > 2 && (
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-sm text-muted-foreground">Aucun produit</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="py-3">
+                                  <div className="flex flex-col gap-1 text-sm">
+                                    {campaign.startDate ? (
+                                      <span>Du {new Date(campaign.startDate).toLocaleDateString('fr-FR')}</span>
+                                    ) : (
+                                      <span className="text-muted-foreground">Non défini</span>
+                                    )}
+                                    {campaign.endDate && (
                                       <span className="text-xs text-muted-foreground">
-                                        +{campaign.products.length - 2} autre(s)
+                                        Au {new Date(campaign.endDate).toLocaleDateString('fr-FR')}
                                       </span>
                                     )}
                                   </div>
-                                ) : (
-                                  <span className="text-sm text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {getStatusBadge(campaign.status)}
-                              </TableCell>
-                              <TableCell>
-                                {campaign.usedSlots}/{campaign.totalSlots}
-                              </TableCell>
-                              <TableCell>
-                                {new Date(campaign.createdAt).toLocaleDateString('fr-FR')}
-                              </TableCell>
-                              <TableCell>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                      <MoreHorizontalIcon className="h-4 w-4" />
-                                      <span className="sr-only">Actions</span>
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => handleViewDetails(campaign)}>
-                                      Voir détails
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleEditClick(campaign)}>
-                                      Modifier
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem>Voir sessions</DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      className="text-destructive"
-                                      onClick={() => handleDeleteClick(campaign)}
-                                    >
-                                      Supprimer
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                                </TableCell>
+                                <TableCell className="py-3">
+                                  {getStatusBadge(campaign.status)}
+                                </TableCell>
+                                <TableCell className="py-3">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                                        <MoreHorizontalIcon className="h-4 w-4" />
+                                        <span className="sr-only">Actions</span>
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => handleViewDetails(campaign)}>
+                                        Voir détails
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleEditClick(campaign)}>
+                                        Modifier
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem>Voir sessions</DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        className="text-destructive"
+                                        onClick={() => handleDeleteClick(campaign)}
+                                      >
+                                        Supprimer
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
