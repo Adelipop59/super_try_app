@@ -48,11 +48,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { MoreHorizontalIcon, PlusIcon, PencilIcon, Trash2Icon, AlertTriangleIcon, PackageIcon, XIcon, CalendarIcon, CheckIcon, ListChecksIcon, ChevronUpIcon, ChevronDownIcon, GripVerticalIcon, EyeIcon, ClipboardListIcon } from "lucide-react"
+import { PlusIcon, PencilIcon, Trash2Icon, AlertTriangleIcon, PackageIcon, XIcon, CalendarIcon, CheckIcon, ListChecksIcon, ChevronUpIcon, ChevronDownIcon, GripVerticalIcon, ClipboardListIcon, EyeIcon } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import Link from "next/link"
 import { toast } from "sonner"
+import { CampaignsDataTable } from "@/components/campaigns-data-table"
+
+const getStatusBadge = (status: string) => {
+  switch (status) {
+    case 'ACTIVE':
+      return <Badge variant="default" className="bg-green-500">Active</Badge>
+    case 'DRAFT':
+      return <Badge variant="secondary">Brouillon</Badge>
+    case 'PAUSED':
+      return <Badge variant="outline" className="border-yellow-500 text-yellow-600">En pause</Badge>
+    case 'COMPLETED':
+      return <Badge variant="outline" className="border-blue-500 text-blue-600">Terminée</Badge>
+    default:
+      return <Badge variant="outline">{status}</Badge>
+  }
+}
 
 export default function CampaignsPage() {
   const { user } = useAuth()
@@ -371,7 +387,11 @@ export default function CampaignsPage() {
       fetchCampaigns()
     } catch (error) {
       console.error('Failed to update campaign:', error)
-      toast.error('Erreur lors de la mise à jour de la campagne')
+      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la mise à jour de la campagne'
+      toast.error(errorMessage, {
+        duration: 5000,
+      })
+      // Ne pas fermer la modal - l'utilisateur doit corriger les erreurs
     } finally {
       setIsSaving(false)
     }
@@ -465,7 +485,11 @@ export default function CampaignsPage() {
       fetchCampaigns()
     } catch (error) {
       console.error('Failed to create campaign:', error)
-      toast.error('Erreur lors de la création de la campagne')
+      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la création de la campagne'
+      toast.error(errorMessage, {
+        duration: 5000,
+      })
+      // Ne pas fermer la modal - l'utilisateur doit corriger les erreurs
     } finally {
       setIsCreating(false)
     }
@@ -495,21 +519,6 @@ export default function CampaignsPage() {
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'ACTIVE':
-        return <Badge variant="default" className="bg-green-500">Actif</Badge>
-      case 'DRAFT':
-        return <Badge variant="secondary">Brouillon</Badge>
-      case 'PAUSED':
-        return <Badge variant="outline">En pause</Badge>
-      case 'COMPLETED':
-        return <Badge variant="default">Terminé</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
-    }
-  }
-
   return (
     <ProtectedRoute>
       <SidebarProvider>
@@ -519,139 +528,38 @@ export default function CampaignsPage() {
           <div className="flex flex-1 flex-col">
             <div className="@container/main flex flex-1 flex-col gap-2">
               <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Campagnes</h2>
-                    <p className="text-muted-foreground">
-                      Gérez vos campagnes de test produit
-                    </p>
-                  </div>
-                  <Button onClick={() => setIsCreateDialogOpen(true)}>
-                    <PlusIcon className="mr-2 h-4 w-4" />
-                    Nouvelle campagne
-                  </Button>
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight">Campagnes</h2>
+                  <p className="text-muted-foreground">
+                    Gérez vos campagnes de test produit
+                  </p>
                 </div>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Toutes les campagnes</CardTitle>
-                    <CardDescription>
-                      {campaigns.length} campagne{campaigns.length !== 1 ? 's' : ''} au total
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {loading ? (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                      </div>
-                    ) : campaigns.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-8 text-center">
-                        <p className="text-muted-foreground mb-4">
-                          Vous n'avez pas encore de campagne
-                        </p>
-                        <Button onClick={() => setIsCreateDialogOpen(true)}>
-                          <PlusIcon className="mr-2 h-4 w-4" />
-                          Créer votre première campagne
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="overflow-hidden rounded-lg border">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Campagne</TableHead>
-                              <TableHead>Produits</TableHead>
-                              <TableHead>Période</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead className="w-[50px]"></TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {campaigns.map((campaign) => (
-                              <TableRow key={campaign.id} className="h-[72px]">
-                                <TableCell className="py-3">
-                                  <div className="space-y-1">
-                                    <div className="font-medium">{campaign.title}</div>
-                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                      <span>{campaign.usedSlots}/{campaign.totalSlots} slots</span>
-                                      <span>Créée le {new Date(campaign.createdAt).toLocaleDateString('fr-FR')}</span>
-                                    </div>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="py-3">
-                                  {campaign.products && campaign.products.length > 0 ? (
-                                    <div className="flex flex-col gap-1">
-                                      {campaign.products.slice(0, 2).map((cp, idx) => (
-                                        <div key={idx} className="flex items-center gap-2">
-                                          <PackageIcon className="h-3 w-3 text-muted-foreground" />
-                                          <span className="text-sm truncate max-w-[150px]">
-                                            {cp.product?.name || 'Produit'}
-                                          </span>
-                                          <Badge variant="outline" className="text-xs px-1">
-                                            x{cp.quantity}
-                                          </Badge>
-                                        </div>
-                                      ))}
-                                      {campaign.products.length > 2 && (
-                                        <span className="text-xs text-muted-foreground">
-                                          +{campaign.products.length - 2} autre(s)
-                                        </span>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <span className="text-sm text-muted-foreground">Aucun produit</span>
-                                  )}
-                                </TableCell>
-                                <TableCell className="py-3">
-                                  <div className="flex flex-col gap-1 text-sm">
-                                    {campaign.startDate ? (
-                                      <span>Du {new Date(campaign.startDate).toLocaleDateString('fr-FR')}</span>
-                                    ) : (
-                                      <span className="text-muted-foreground">Non défini</span>
-                                    )}
-                                    {campaign.endDate && (
-                                      <span className="text-xs text-muted-foreground">
-                                        Au {new Date(campaign.endDate).toLocaleDateString('fr-FR')}
-                                      </span>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="py-3">
-                                  {getStatusBadge(campaign.status)}
-                                </TableCell>
-                                <TableCell className="py-3">
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                                        <MoreHorizontalIcon className="h-4 w-4" />
-                                        <span className="sr-only">Actions</span>
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => handleViewDetails(campaign)}>
-                                        Voir détails
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => handleEditClick(campaign)}>
-                                        Modifier
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem>Voir sessions</DropdownMenuItem>
-                                      <DropdownMenuItem
-                                        className="text-destructive"
-                                        onClick={() => handleDeleteClick(campaign)}
-                                      >
-                                        Supprimer
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                  </div>
+                ) : campaigns.length === 0 ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+                      <p className="text-muted-foreground mb-4">
+                        Vous n'avez pas encore de campagne
+                      </p>
+                      <Button onClick={() => setIsCreateDialogOpen(true)}>
+                        <PlusIcon className="mr-2 h-4 w-4" />
+                        Créer votre première campagne
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <CampaignsDataTable
+                    data={campaigns}
+                    onView={handleViewDetails}
+                    onEdit={handleEditClick}
+                    onDelete={handleDeleteClick}
+                    onAdd={() => setIsCreateDialogOpen(true)}
+                  />
+                )}
               </div>
             </div>
           </div>

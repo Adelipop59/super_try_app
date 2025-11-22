@@ -7,29 +7,11 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/auth-context"
 import { api, ProcedureTemplate, CreateProcedureTemplateData, StepType } from "@/lib/api"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -49,8 +31,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { MoreHorizontalIcon, PlusIcon, PencilIcon, Trash2Icon, AlertTriangleIcon, ListChecksIcon, XIcon, GripVerticalIcon } from "lucide-react"
+import { PlusIcon, PencilIcon, Trash2Icon, AlertTriangleIcon, ListChecksIcon, XIcon, GripVerticalIcon } from "lucide-react"
 import { toast } from "sonner"
+import { ProceduresDataTable } from "@/components/procedures-data-table"
 
 interface StepFormData {
   title: string
@@ -359,102 +342,37 @@ export default function ProceduresPage() {
           <div className="flex flex-1 flex-col">
             <div className="@container/main flex flex-1 flex-col gap-2">
               <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Templates de procédures</h2>
-                    <p className="text-muted-foreground">
-                      Créez des templates réutilisables pour vos campagnes
-                    </p>
-                  </div>
-                  <Button onClick={() => setIsCreateDialogOpen(true)}>
-                    <PlusIcon className="mr-2 h-4 w-4" />
-                    Nouveau template
-                  </Button>
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight">Templates de procédures</h2>
+                  <p className="text-muted-foreground">
+                    Créez des templates réutilisables pour vos campagnes
+                  </p>
                 </div>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Tous les templates</CardTitle>
-                    <CardDescription>
-                      {templates.length} template{templates.length !== 1 ? 's' : ''} au total
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {loading ? (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                      </div>
-                    ) : templates.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-8 text-center">
-                        <p className="text-muted-foreground mb-4">
-                          Vous n'avez pas encore de template de procédure
-                        </p>
-                        <Button onClick={() => setIsCreateDialogOpen(true)}>
-                          <PlusIcon className="mr-2 h-4 w-4" />
-                          Créer votre premier template
-                        </Button>
-                      </div>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Nom</TableHead>
-                            <TableHead>Titre</TableHead>
-                            <TableHead>Étapes</TableHead>
-                            <TableHead>Créé le</TableHead>
-                            <TableHead className="w-[50px]"></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {templates.map((template) => (
-                            <TableRow key={template.id}>
-                              <TableCell>
-                                <div className="font-medium">{template.name}</div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm">{template.title}</div>
-                                {template.description && (
-                                  <div className="text-xs text-muted-foreground line-clamp-1">
-                                    {template.description}
-                                  </div>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="outline">
-                                  {template.steps.length} étape{template.steps.length !== 1 ? 's' : ''}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                {new Date(template.createdAt).toLocaleDateString('fr-FR')}
-                              </TableCell>
-                              <TableCell>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                      <MoreHorizontalIcon className="h-4 w-4" />
-                                      <span className="sr-only">Actions</span>
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => handleEditClick(template)}>
-                                      Modifier
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      className="text-destructive"
-                                      onClick={() => handleDeleteClick(template)}
-                                    >
-                                      Supprimer
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </CardContent>
-                </Card>
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                  </div>
+                ) : templates.length === 0 ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+                      <p className="text-muted-foreground mb-4">
+                        Vous n'avez pas encore de template de procédure
+                      </p>
+                      <Button onClick={() => setIsCreateDialogOpen(true)}>
+                        <PlusIcon className="mr-2 h-4 w-4" />
+                        Créer votre premier template
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <ProceduresDataTable
+                    data={templates}
+                    onEdit={handleEditClick}
+                    onDelete={handleDeleteClick}
+                    onAdd={() => setIsCreateDialogOpen(true)}
+                  />
+                )}
               </div>
             </div>
           </div>

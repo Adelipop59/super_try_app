@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { api, Profile, SignInData, SignUpData } from '@/lib/api'
+import { api, Profile, SignInData, SignUpData, UpdateProfileData } from '@/lib/api'
 
 interface AuthContextType {
   user: Profile | null
@@ -10,7 +10,7 @@ interface AuthContextType {
   signIn: (data: SignInData) => Promise<void>
   signUp: (data: SignUpData) => Promise<void>
   signOut: () => Promise<void>
-  updateUser: (data: Partial<Profile>) => Promise<void>
+  updateUser: (data: UpdateProfileData) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -38,6 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Token invalide ou expiré - nettoyer silencieusement
       api.setToken(null)
+      api.setRefreshToken(null)
       setUser(null)
     } finally {
       setLoading(false)
@@ -48,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await api.signIn(data)
       api.setToken(response.access_token)
+      api.setRefreshToken(response.refresh_token)
       setUser(response.profile)
       router.push('/dashboard')
     } catch (error) {
@@ -59,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await api.signUp(data)
       api.setToken(response.access_token)
+      api.setRefreshToken(response.refresh_token)
       setUser(response.profile)
       router.push('/dashboard')
     } catch (error) {
@@ -76,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const updateUser = async (data: Partial<Profile>) => {
+  const updateUser = async (data: UpdateProfileData) => {
     try {
       const updatedProfile = await api.updateProfile(data)
       setUser(updatedProfile)

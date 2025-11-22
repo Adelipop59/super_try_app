@@ -225,16 +225,60 @@ export interface UpdateProcedureTemplateData {
   steps?: CreateStepTemplateData[]
 }
 
+// Pagination interfaces
+export interface PaginationMeta {
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+  hasNextPage: boolean
+  hasPreviousPage: boolean
+}
+
+export interface PaginatedResponse<T> {
+  data: T[]
+  meta: PaginationMeta
+}
+
+export interface UpdateProfileData {
+  firstName?: string
+  lastName?: string
+  phone?: string
+  avatar?: string
+  companyName?: string
+  siret?: string
+}
+
+export interface ChangePasswordData {
+  oldPassword: string
+  newPassword: string
+}
+
+export interface UpdateEmailData {
+  email: string
+  password: string
+}
+
+export interface RefreshTokenResponse {
+  access_token: string
+  token_type: string
+  expires_in: number
+}
+
 class ApiClient {
   private baseUrl: string
   private token: string | null = null
+  private refreshToken: string | null = null
+  private isRefreshing: boolean = false
+  private refreshPromise: Promise<boolean> | null = null
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl
 
-    // Récupérer le token du localStorage si disponible
+    // Récupérer les tokens du localStorage si disponible
     if (typeof window !== 'undefined') {
       this.token = localStorage.getItem('auth_token')
+      this.refreshToken = localStorage.getItem('refresh_token')
     }
   }
 
@@ -249,13 +293,73 @@ class ApiClient {
     }
   }
 
+  setRefreshToken(token: string | null) {
+    this.refreshToken = token
+    if (typeof window !== 'undefined') {
+      if (token) {
+        localStorage.setItem('refresh_token', token)
+      } else {
+        localStorage.removeItem('refresh_token')
+      }
+    }
+  }
+
   getToken() {
     return this.token
   }
 
+  getRefreshToken() {
+    return this.refreshToken
+  }
+
+  private async tryRefreshToken(): Promise<boolean> {
+    if (!this.refreshToken) {
+      return false
+    }
+
+    // Si un refresh est déjà en cours, attendre sa résolution
+    if (this.isRefreshing && this.refreshPromise) {
+      return this.refreshPromise
+    }
+
+    this.isRefreshing = true
+    this.refreshPromise = (async () => {
+      try {
+        const response = await fetch(`${this.baseUrl}/auth/refresh`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ refresh_token: this.refreshToken }),
+        })
+
+        if (!response.ok) {
+          // Refresh token invalide, nettoyer les tokens
+          this.setToken(null)
+          this.setRefreshToken(null)
+          return false
+        }
+
+        const data: RefreshTokenResponse = await response.json()
+        this.setToken(data.access_token)
+        return true
+      } catch {
+        this.setToken(null)
+        this.setRefreshToken(null)
+        return false
+      } finally {
+        this.isRefreshing = false
+        this.refreshPromise = null
+      }
+    })()
+
+    return this.refreshPromise
+  }
+
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    retry: boolean = true
   ): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -270,6 +374,17 @@ class ApiClient {
       ...options,
       headers,
     })
+
+    // Si erreur 401 et qu'on a un refresh token, tenter de rafraîchir
+    if (response.status === 401 && retry && this.refreshToken) {
+      const refreshed = await this.tryRefreshToken()
+      if (refreshed) {
+        // Réessayer la requête avec le nouveau token
+        return this.request<T>(endpoint, options, false)
+      }
+      // Si le refresh a échoué, propager l'erreur 401
+      throw new Error('Session expirée. Veuillez vous reconnecter.')
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({
@@ -306,11 +421,26 @@ class ApiClient {
 
   async signOut() {
     this.setToken(null)
+    this.setRefreshToken(null)
   }
 
   // Users endpoints
-  async updateProfile(data: Partial<Profile>): Promise<Profile> {
+  async updateProfile(data: UpdateProfileData): Promise<Profile> {
     return this.request<Profile>('/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async changePassword(data: ChangePasswordData): Promise<{ message: string }> {
+    return this.request('/auth/change-password', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateEmail(data: UpdateEmailData): Promise<{ message: string }> {
+    return this.request('/auth/update-email', {
       method: 'PATCH',
       body: JSON.stringify(data),
     })
@@ -321,8 +451,13 @@ class ApiClient {
     return this.request<Session[]>('/sessions')
   }
 
-  async getMyCampaigns(): Promise<Campaign[]> {
-    return this.request<Campaign[]>('/campaigns/my-campaigns')
+  async getMyCampaigns(page: number = 1, limit: number = 100): Promise<Campaign[]> {
+    const response = await this.request<PaginatedResponse<Campaign>>(`/campaigns/my-campaigns?page=${page}&limit=${limit}`)
+    return response.data
+  }
+
+  async getMyCampaignsPaginated(page: number = 1, limit: number = 20): Promise<PaginatedResponse<Campaign>> {
+    return this.request<PaginatedResponse<Campaign>>(`/campaigns/my-campaigns?page=${page}&limit=${limit}`)
   }
 
   async getCampaign(id: string): Promise<Campaign> {
@@ -360,8 +495,13 @@ class ApiClient {
     })
   }
 
-  async getMyProducts(): Promise<Product[]> {
-    return this.request<Product[]>('/products/my-products')
+  async getMyProducts(page: number = 1, limit: number = 100): Promise<Product[]> {
+    const response = await this.request<PaginatedResponse<Product>>(`/products/my-products?page=${page}&limit=${limit}`)
+    return response.data
+  }
+
+  async getMyProductsPaginated(page: number = 1, limit: number = 20): Promise<PaginatedResponse<Product>> {
+    return this.request<PaginatedResponse<Product>>(`/products/my-products?page=${page}&limit=${limit}`)
   }
 
   async getProduct(id: string): Promise<Product> {
@@ -487,8 +627,13 @@ class ApiClient {
   }
 
   // Distributions endpoints
-  async getDistributions(campaignId: string): Promise<Distribution[]> {
-    return this.request<Distribution[]>(`/campaigns/${campaignId}/distributions`)
+  async getDistributions(campaignId: string, page: number = 1, limit: number = 100): Promise<Distribution[]> {
+    const response = await this.request<PaginatedResponse<Distribution>>(`/campaigns/${campaignId}/distributions?page=${page}&limit=${limit}`)
+    return response.data
+  }
+
+  async getDistributionsPaginated(campaignId: string, page: number = 1, limit: number = 20): Promise<PaginatedResponse<Distribution>> {
+    return this.request<PaginatedResponse<Distribution>>(`/campaigns/${campaignId}/distributions?page=${page}&limit=${limit}`)
   }
 
   async getDistribution(campaignId: string, distributionId: string): Promise<Distribution> {
@@ -523,8 +668,13 @@ class ApiClient {
   }
 
   // Procedure Templates endpoints
-  async getProcedureTemplates(): Promise<ProcedureTemplate[]> {
-    return this.request<ProcedureTemplate[]>('/procedure-templates')
+  async getProcedureTemplates(page: number = 1, limit: number = 100): Promise<ProcedureTemplate[]> {
+    const response = await this.request<PaginatedResponse<ProcedureTemplate>>(`/procedure-templates?page=${page}&limit=${limit}`)
+    return response.data
+  }
+
+  async getProcedureTemplatesPaginated(page: number = 1, limit: number = 20): Promise<PaginatedResponse<ProcedureTemplate>> {
+    return this.request<PaginatedResponse<ProcedureTemplate>>(`/procedure-templates?page=${page}&limit=${limit}`)
   }
 
   async getProcedureTemplate(id: string): Promise<ProcedureTemplate> {

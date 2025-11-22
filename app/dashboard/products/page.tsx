@@ -7,29 +7,11 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/auth-context"
 import { api, Product } from "@/lib/api"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -41,8 +23,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { MoreHorizontalIcon, PlusIcon, PencilIcon, Trash2Icon, AlertTriangleIcon, PackageIcon, ExternalLinkIcon } from "lucide-react"
+import { PlusIcon, PencilIcon, Trash2Icon, AlertTriangleIcon, PackageIcon } from "lucide-react"
 import { toast } from "sonner"
+import { ProductsDataTable } from "@/components/products-data-table"
 
 export default function ProductsPage() {
   const { user } = useAuth()
@@ -208,13 +191,6 @@ export default function ProductsPage() {
     }
   }
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
-    }).format(price)
-  }
-
   return (
     <ProtectedRoute>
       <SidebarProvider>
@@ -224,129 +200,37 @@ export default function ProductsPage() {
           <div className="flex flex-1 flex-col">
             <div className="@container/main flex flex-1 flex-col gap-2">
               <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Produits</h2>
-                    <p className="text-muted-foreground">
-                      Gérez vos produits à tester
-                    </p>
-                  </div>
-                  <Button onClick={() => setIsCreateDialogOpen(true)}>
-                    <PlusIcon className="mr-2 h-4 w-4" />
-                    Nouveau produit
-                  </Button>
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight">Produits</h2>
+                  <p className="text-muted-foreground">
+                    Gérez vos produits à tester
+                  </p>
                 </div>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Tous les produits</CardTitle>
-                    <CardDescription>
-                      {products.length} produit{products.length !== 1 ? 's' : ''} au total
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {loading ? (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                      </div>
-                    ) : products.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-8 text-center">
-                        <p className="text-muted-foreground mb-4">
-                          Vous n'avez pas encore de produit
-                        </p>
-                        <Button onClick={() => setIsCreateDialogOpen(true)}>
-                          <PlusIcon className="mr-2 h-4 w-4" />
-                          Créer votre premier produit
-                        </Button>
-                      </div>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Nom</TableHead>
-                            <TableHead>Prix</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Créé le</TableHead>
-                            <TableHead className="w-[50px]"></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {products.map((product) => (
-                            <TableRow key={product.id}>
-                              <TableCell>
-                                <div className="flex items-center gap-3">
-                                  {product.imageUrl ? (
-                                    <img
-                                      src={product.imageUrl}
-                                      alt={product.name}
-                                      className="h-10 w-10 rounded-md object-cover"
-                                    />
-                                  ) : (
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted">
-                                      <PackageIcon className="h-5 w-5 text-muted-foreground" />
-                                    </div>
-                                  )}
-                                  <div>
-                                    <div className="font-medium">{product.name}</div>
-                                    {product.description && (
-                                      <div className="text-sm text-muted-foreground line-clamp-1">
-                                        {product.description}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <span className="font-medium">{formatPrice(product.price)}</span>
-                              </TableCell>
-                              <TableCell>
-                                {product.isActive ? (
-                                  <Badge variant="default" className="bg-green-500">Actif</Badge>
-                                ) : (
-                                  <Badge variant="secondary">Inactif</Badge>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {new Date(product.createdAt).toLocaleDateString('fr-FR')}
-                              </TableCell>
-                              <TableCell>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                      <MoreHorizontalIcon className="h-4 w-4" />
-                                      <span className="sr-only">Actions</span>
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    {product.amazonUrl && (
-                                      <DropdownMenuItem asChild>
-                                        <a href={product.amazonUrl} target="_blank" rel="noopener noreferrer">
-                                          <ExternalLinkIcon className="mr-2 h-4 w-4" />
-                                          Voir sur Amazon
-                                        </a>
-                                      </DropdownMenuItem>
-                                    )}
-                                    <DropdownMenuItem onClick={() => handleEditClick(product)}>
-                                      <PencilIcon className="mr-2 h-4 w-4" />
-                                      Modifier
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      className="text-destructive"
-                                      onClick={() => handleDeleteClick(product)}
-                                    >
-                                      <Trash2Icon className="mr-2 h-4 w-4" />
-                                      Supprimer
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </CardContent>
-                </Card>
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                  </div>
+                ) : products.length === 0 ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+                      <p className="text-muted-foreground mb-4">
+                        Vous n'avez pas encore de produit
+                      </p>
+                      <Button onClick={() => setIsCreateDialogOpen(true)}>
+                        <PlusIcon className="mr-2 h-4 w-4" />
+                        Créer votre premier produit
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <ProductsDataTable
+                    data={products}
+                    onEdit={handleEditClick}
+                    onDelete={handleDeleteClick}
+                    onAdd={() => setIsCreateDialogOpen(true)}
+                  />
+                )}
               </div>
             </div>
           </div>
