@@ -28,6 +28,7 @@ import {
   CalendarIcon,
   UsersIcon,
   PackageIcon,
+  CreditCardIcon,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -65,6 +66,7 @@ interface CampaignsDataTableProps {
   onEdit: (campaign: Campaign) => void
   onDelete: (campaign: Campaign) => void
   onAdd: () => void
+  onPayment?: (campaign: Campaign) => void
 }
 
 const getStatusBadge = (status: string) => {
@@ -73,16 +75,20 @@ const getStatusBadge = (status: string) => {
       return <Badge variant="default" className="bg-green-500">Active</Badge>
     case 'DRAFT':
       return <Badge variant="secondary">Brouillon</Badge>
+    case 'PENDING_PAYMENT':
+      return <Badge variant="outline" className="border-orange-500 text-orange-600">En attente de paiement</Badge>
     case 'PAUSED':
       return <Badge variant="outline" className="border-yellow-500 text-yellow-600">En pause</Badge>
     case 'COMPLETED':
       return <Badge variant="outline" className="border-blue-500 text-blue-600">Terminée</Badge>
+    case 'CANCELLED':
+      return <Badge variant="outline" className="border-red-500 text-red-600">Annulée</Badge>
     default:
       return <Badge variant="outline">{status}</Badge>
   }
 }
 
-export function CampaignsDataTable({ data, onView, onEdit, onDelete, onAdd }: CampaignsDataTableProps) {
+export function CampaignsDataTable({ data, onView, onEdit, onDelete, onAdd, onPayment }: CampaignsDataTableProps) {
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -223,6 +229,12 @@ export function CampaignsDataTable({ data, onView, onEdit, onDelete, onAdd }: Ca
                   <PencilIcon className="mr-2 h-4 w-4" />
                   Modifier
                 </DropdownMenuItem>
+                {(campaign.status === 'DRAFT' || campaign.status === 'PENDING_PAYMENT') && onPayment && (
+                  <DropdownMenuItem onClick={() => onPayment(campaign)}>
+                    <CreditCardIcon className="mr-2 h-4 w-4" />
+                    {campaign.status === 'PENDING_PAYMENT' ? 'Compléter le paiement' : 'Activer (Payer)'}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive"

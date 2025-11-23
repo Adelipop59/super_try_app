@@ -63,8 +63,12 @@ export interface CampaignProduct {
   productId: string
   quantity: number
   expectedPrice?: number
+  shippingCost?: number
   priceRangeMin?: number
   priceRangeMax?: number
+  reimbursedPrice?: boolean
+  reimbursedShipping?: boolean
+  bonus?: number
   product?: Product
 }
 
@@ -265,6 +269,71 @@ export interface RefreshTokenResponse {
   expires_in: number
 }
 
+export interface PaymentIntentResponse {
+  clientSecret: string
+  paymentIntentId: string
+  amount: number
+  currency: string
+  transactionId: string
+}
+
+export interface CheckoutSessionResponse {
+  checkoutUrl: string
+  sessionId: string
+  amount: number
+  currency: string
+  transactionId: string
+}
+
+export interface CreateCheckoutSessionData {
+  successUrl: string
+  cancelUrl: string
+}
+
+// Campaign Transaction interfaces
+export interface CampaignTransaction {
+  id: string
+  type: 'CAMPAIGN_PAYMENT' | 'CAMPAIGN_REFUND'
+  amount: number
+  reason: string
+  status: 'PENDING' | 'COMPLETED' | 'FAILED'
+  campaignId: string
+  campaign: {
+    id: string
+    title: string
+    status: 'DRAFT' | 'PENDING_PAYMENT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+  }
+  stripePaymentIntentId: string | null
+  stripeSessionId: string | null
+  failureReason: string | null
+  metadata: Record<string, any> | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CampaignTransactionsResponse {
+  data: CampaignTransaction[]
+  meta: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
+}
+
+// Custom error class for API errors with validation details
+export class ApiError extends Error {
+  public errors?: string[]
+  public statusCode?: number
+
+  constructor(message: string, errors?: string[], statusCode?: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.errors = errors
+    this.statusCode = statusCode
+  }
+}
+
 class ApiClient {
   private baseUrl: string
   private token: string | null = null
@@ -390,7 +459,11 @@ class ApiClient {
       const error = await response.json().catch(() => ({
         message: response.statusText,
       }))
-      throw new Error(error.message || 'Une erreur est survenue')
+      throw new ApiError(
+        error.message || 'Une erreur est survenue',
+        error.errors,
+        error.statusCode || response.status
+      )
     }
 
     return response.json()
@@ -705,6 +778,27 @@ class ApiClient {
     return this.request<Procedure>(`/procedure-templates/${templateId}/copy-to-campaign/${campaignId}`, {
       method: 'POST',
       body: JSON.stringify({ order }),
+    })
+  }
+
+  // Payment endpoints
+  async createPaymentIntent(campaignId: string): Promise<PaymentIntentResponse> {
+    return this.request<PaymentIntentResponse>(`/campaigns/${campaignId}/payment-intent`, {
+      method: 'POST',
+    })
+  }
+
+  async createCheckoutSession(campaignId: string, data: CreateCheckoutSessionData): Promise<CheckoutSessionResponse> {
+    return this.request<CheckoutSessionResponse>(`/campaigns/${campaignId}/checkout-session`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Transactions
+  async getMyTransactions(page: number = 1, limit: number = 20): Promise<CampaignTransactionsResponse> {
+    return this.request<CampaignTransactionsResponse>(`/campaigns/my-transactions?page=${page}&limit=${limit}`, {
+      method: 'GET',
     })
   }
 }

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -48,12 +49,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { PlusIcon, PencilIcon, Trash2Icon, AlertTriangleIcon, PackageIcon, XIcon, CalendarIcon, CheckIcon, ListChecksIcon, ChevronUpIcon, ChevronDownIcon, GripVerticalIcon, ClipboardListIcon, EyeIcon } from "lucide-react"
+import { PlusIcon, PencilIcon, Trash2Icon, AlertTriangleIcon, PackageIcon, XIcon, CalendarIcon, CheckIcon, ListChecksIcon, ChevronUpIcon, ChevronDownIcon, GripVerticalIcon, ClipboardListIcon, EyeIcon, CreditCardIcon } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import Link from "next/link"
 import { toast } from "sonner"
 import { CampaignsDataTable } from "@/components/campaigns-data-table"
+import { PaymentDialog } from "@/components/payment-dialog"
+import { CampaignProductConfig } from "@/components/campaign-product-config"
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -61,10 +64,14 @@ const getStatusBadge = (status: string) => {
       return <Badge variant="default" className="bg-green-500">Active</Badge>
     case 'DRAFT':
       return <Badge variant="secondary">Brouillon</Badge>
+    case 'PENDING_PAYMENT':
+      return <Badge variant="outline" className="border-orange-500 text-orange-600">En attente de paiement</Badge>
     case 'PAUSED':
       return <Badge variant="outline" className="border-yellow-500 text-yellow-600">En pause</Badge>
     case 'COMPLETED':
       return <Badge variant="outline" className="border-blue-500 text-blue-600">Terminée</Badge>
+    case 'CANCELLED':
+      return <Badge variant="outline" className="border-red-500 text-red-600">Annulée</Badge>
     default:
       return <Badge variant="outline">{status}</Badge>
   }
@@ -72,6 +79,8 @@ const getStatusBadge = (status: string) => {
 
 export default function CampaignsPage() {
   const { user } = useAuth()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [procedureTemplates, setProcedureTemplates] = useState<ProcedureTemplate[]>([])
@@ -88,11 +97,14 @@ export default function CampaignsPage() {
     endDate: '',
     totalSlots: 0,
   })
-  const [editProducts, setEditProducts] = useState<{
+  const [editProduct, setEditProduct] = useState<{
     productId: string
-    quantity: number
     expectedPrice: number
-  }[]>([])
+    shippingCost: number
+    reimbursedPrice: boolean
+    reimbursedShipping: boolean
+    bonus: number
+  } | null>(null)
   const [editDistributions, setEditDistributions] = useState<{
     id?: string
     type: DistributionType
@@ -135,11 +147,14 @@ export default function CampaignsPage() {
     endDate: '',
     totalSlots: 10,
   })
-  const [selectedProducts, setSelectedProducts] = useState<{
+  const [selectedProduct, setSelectedProduct] = useState<{
     productId: string
-    quantity: number
     expectedPrice: number
-  }[]>([])
+    shippingCost: number
+    reimbursedPrice: boolean
+    reimbursedShipping: boolean
+    bonus: number
+  } | null>(null)
   const [distributions, setDistributions] = useState<{
     type: DistributionType
     dayOfWeek?: number
@@ -186,9 +201,35 @@ export default function CampaignsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  // Payment state
+  const [payingCampaign, setPayingCampaign] = useState<Campaign | null>(null)
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
+
   useEffect(() => {
     fetchData()
   }, [user])
+
+  // Handle payment return from Stripe
+  useEffect(() => {
+    const payment = searchParams.get('payment')
+    const campaignId = searchParams.get('campaign')
+
+    if (payment === 'success' && campaignId) {
+      toast.success('Paiement réussi !', {
+        description: 'Votre campagne a été activée avec succès.',
+      })
+      // Refresh campaigns to show updated status
+      fetchData()
+      // Remove query params from URL
+      router.replace('/dashboard/campaigns')
+    } else if (payment === 'cancelled' && campaignId) {
+      toast.info('Paiement annulé', {
+        description: 'Le paiement a été annulé. Vous pouvez réessayer quand vous voulez.',
+      })
+      // Remove query params from URL
+      router.replace('/dashboard/campaigns')
+    }
+  }, [searchParams])
 
   const fetchData = async () => {
     if (!user) return
@@ -235,15 +276,19 @@ export default function CampaignsPage() {
       totalSlots: campaign.totalSlots,
     })
 
-    // Set products from campaign
+    // Set product from campaign
     if (campaign.products && campaign.products.length > 0) {
-      setEditProducts(campaign.products.map(cp => ({
+      const cp = campaign.products[0]
+      setEditProduct({
         productId: cp.productId,
-        quantity: cp.quantity,
-        expectedPrice: cp.expectedPrice || cp.product?.price || 0
-      })))
+        expectedPrice: cp.expectedPrice || cp.product?.price || 0,
+        shippingCost: cp.shippingCost || cp.product?.shippingCost || 0,
+        reimbursedPrice: cp.reimbursedPrice ?? true,
+        reimbursedShipping: cp.reimbursedShipping ?? true,
+        bonus: cp.bonus || 0,
+      })
     } else {
-      setEditProducts([])
+      setEditProduct(null)
     }
 
     setEditStep(1)
@@ -302,6 +347,68 @@ export default function CampaignsPage() {
     }
   }
 
+  // Product handlers for Edit
+  const handleEditSelectProduct = (productId: string) => {
+    const product = products.find(p => p.id === productId)
+    if (product) {
+      setEditProduct({
+        productId,
+        expectedPrice: product.price,
+        shippingCost: product.shippingCost || 0,
+        reimbursedPrice: true,
+        reimbursedShipping: true,
+        bonus: 0
+      })
+    }
+  }
+
+  const handleEditUpdateProduct = (updates: Partial<{
+    expectedPrice: number
+    shippingCost: number
+    reimbursedPrice: boolean
+    reimbursedShipping: boolean
+    bonus: number
+  }>) => {
+    if (editProduct) {
+      setEditProduct({ ...editProduct, ...updates })
+    }
+  }
+
+  const handleEditRemoveProduct = () => {
+    setEditProduct(null)
+  }
+
+  // Product handlers for Create
+  const handleSelectProduct = (productId: string) => {
+    const product = products.find(p => p.id === productId)
+    if (product) {
+      setSelectedProduct({
+        productId,
+        expectedPrice: product.price,
+        shippingCost: product.shippingCost || 0,
+        reimbursedPrice: true,
+        reimbursedShipping: true,
+        bonus: 0
+      })
+    }
+  }
+
+  const handleUpdateProduct = (updates: Partial<{
+    expectedPrice: number
+    shippingCost: number
+    reimbursedPrice: boolean
+    reimbursedShipping: boolean
+    bonus: number
+  }>) => {
+    if (selectedProduct) {
+      setSelectedProduct({ ...selectedProduct, ...updates })
+    }
+  }
+
+  const handleRemoveProduct = () => {
+    setSelectedProduct(null)
+  }
+
   const handleEditSave = async () => {
     if (!editingCampaign) return
 
@@ -334,9 +441,9 @@ export default function CampaignsPage() {
         updateData.endDate = new Date(editForm.endDate).toISOString()
       }
 
-      // Include products
-      if (editProducts.length > 0) {
-        updateData.products = editProducts
+      // Include product
+      if (editProduct) {
+        updateData.products = [editProduct]
       }
 
       await api.updateCampaign(editingCampaign.id, updateData)
@@ -429,8 +536,8 @@ export default function CampaignsPage() {
       if (createForm.endDate) {
         createData.endDate = new Date(createForm.endDate).toISOString()
       }
-      if (selectedProducts.length > 0) {
-        createData.products = selectedProducts
+      if (selectedProduct) {
+        createData.products = [selectedProduct]
       }
 
       const campaign = await api.createCampaign(createData)
@@ -519,6 +626,17 @@ export default function CampaignsPage() {
     }
   }
 
+  const handlePaymentClick = (campaign: Campaign) => {
+    setPayingCampaign(campaign)
+    setIsPaymentDialogOpen(true)
+  }
+
+  const handlePaymentSuccess = () => {
+    setPayingCampaign(null)
+    setIsPaymentDialogOpen(false)
+    fetchCampaigns()
+  }
+
   return (
     <ProtectedRoute>
       <SidebarProvider>
@@ -558,6 +676,7 @@ export default function CampaignsPage() {
                     onEdit={handleEditClick}
                     onDelete={handleDeleteClick}
                     onAdd={() => setIsCreateDialogOpen(true)}
+                    onPayment={handlePaymentClick}
                   />
                 )}
               </div>
@@ -707,11 +826,15 @@ export default function CampaignsPage() {
                 </Label>
                 <Input
                   id="create-totalSlots"
-                  type="number"
-                  min="1"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   placeholder="10"
                   value={createForm.totalSlots}
-                  onChange={(e) => setCreateForm({ ...createForm, totalSlots: parseInt(e.target.value) || 1 })}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^0-9]/g, '')
+                    setCreateForm({ ...createForm, totalSlots: parseInt(value) || 0 })
+                  }}
                   className="h-10"
                 />
               </div>
@@ -728,121 +851,14 @@ export default function CampaignsPage() {
                     </Link>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {selectedProducts.length > 0 && (
-                      <div className="overflow-hidden rounded-lg border">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Produit</TableHead>
-                              <TableHead className="w-[80px]">Qté</TableHead>
-                              <TableHead className="w-[100px]">Prix</TableHead>
-                              <TableHead className="w-[50px]"></TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {selectedProducts.map((sp, index) => {
-                              const product = products.find(p => p.id === sp.productId)
-                              return (
-                                <TableRow key={index}>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      <PackageIcon className="h-4 w-4 text-muted-foreground" />
-                                      <span className="text-sm font-medium truncate">{product?.name || 'Produit inconnu'}</span>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Input
-                                      type="number"
-                                      min="1"
-                                      value={sp.quantity}
-                                      onChange={(e) => {
-                                        const newProducts = [...selectedProducts]
-                                        newProducts[index].quantity = parseInt(e.target.value) || 1
-                                        setSelectedProducts(newProducts)
-                                      }}
-                                      className="h-8 w-16 text-sm"
-                                    />
-                                  </TableCell>
-                                  <TableCell>
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      value={sp.expectedPrice}
-                                      onChange={(e) => {
-                                        const newProducts = [...selectedProducts]
-                                        newProducts[index].expectedPrice = parseFloat(e.target.value) || 0
-                                        setSelectedProducts(newProducts)
-                                      }}
-                                      className="h-8 w-20 text-sm"
-                                    />
-                                  </TableCell>
-                                  <TableCell>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                      onClick={() => {
-                                        setSelectedProducts(selectedProducts.filter((_, i) => i !== index))
-                                      }}
-                                    >
-                                      <XIcon className="h-4 w-4" />
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              )
-                            })}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-
-                    {products.filter(p => !selectedProducts.some(sp => sp.productId === p.id)).length > 0 && (
-                      <Select
-                        value=""
-                        onValueChange={(value) => {
-                          if (value) {
-                            const product = products.find(p => p.id === value)
-                            const defaultPrice = product?.price || 0
-                            setSelectedProducts([...selectedProducts, {
-                              productId: value,
-                              quantity: 1,
-                              expectedPrice: defaultPrice
-                            }])
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="h-10">
-                          <SelectValue placeholder="Ajouter un produit..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {products
-                            .filter(p => !selectedProducts.some(sp => sp.productId === p.id))
-                            .map((product) => (
-                              <SelectItem key={product.id} value={product.id}>
-                                <div className="flex items-center gap-2">
-                                  <PackageIcon className="h-4 w-4 text-muted-foreground" />
-                                  <span>{product.name}</span>
-                                  {product.price && (
-                                    <span className="text-muted-foreground">
-                                      - {product.price}€
-                                    </span>
-                                  )}
-                                </div>
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-
-                    {selectedProducts.length === products.length && selectedProducts.length > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        Tous les produits ont été ajoutés
-                      </p>
-                    )}
-                  </div>
+                  <CampaignProductConfig
+                    products={products}
+                    selectedProduct={selectedProduct}
+                    totalSlots={createForm.totalSlots}
+                    onSelectProduct={handleSelectProduct}
+                    onUpdateProduct={handleUpdateProduct}
+                    onRemoveProduct={handleRemoveProduct}
+                  />
                 )}
               </div>
             </div>
@@ -850,11 +866,53 @@ export default function CampaignsPage() {
 
           {/* Step 2: Distributions */}
           {createStep === 2 && (
-            <div className="grid gap-5 py-4 max-h-[400px] overflow-y-auto">
+            <div className="grid gap-5 py-4">
+              {/* Nombre total de produits - Sticky en haut */}
+              <Card className="border-primary/20 bg-primary/5 sticky top-0 z-10">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-medium">Nombre total de produits</Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Modifiable depuis cette section
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={createForm.totalSlots}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^0-9]/g, '')
+                          setCreateForm({ ...createForm, totalSlots: parseInt(value) || 0 })
+                        }}
+                        className="h-9 w-20 text-center font-bold text-lg"
+                      />
+                      <span className="text-sm text-muted-foreground">produits</span>
+                    </div>
+                  </div>
+                  
+                  {distributions.length > 0 && (() => {
+                    const totalDistributed = distributions.reduce((sum, d) => sum + (d.maxUnits || 0), 0)
+                    const remaining = createForm.totalSlots - totalDistributed
+                    return (
+                      <div className="mt-3 pt-3 border-t flex justify-between text-sm">
+                        <span className="text-muted-foreground">Produits distribués:</span>
+                        <span className="font-medium">{totalDistributed}</span>
+                        <span className={`font-bold ${remaining < 0 ? 'text-destructive' : remaining === 0 ? 'text-green-600' : 'text-orange-500'}`}>
+                          Restants: {remaining}
+                        </span>
+                      </div>
+                    )
+                  })()}
+                </CardContent>
+              </Card>
+
               <div className="grid gap-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium">
-                    Créneaux de distribution
+                    Dates de distribution
                   </Label>
                   <Button
                     type="button"
@@ -862,8 +920,8 @@ export default function CampaignsPage() {
                     size="sm"
                     onClick={() => {
                       setDistributions([...distributions, {
-                        type: 'RECURRING',
-                        dayOfWeek: 1,
+                        type: 'SPECIFIC_DATE',
+                        specificDate: '',
                         maxUnits: 5,
                         isActive: true,
                       }])
@@ -874,7 +932,7 @@ export default function CampaignsPage() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Définissez quand et combien de produits peuvent être distribués
+                  Définissez quand et combien de produits seront distribués
                 </p>
               </div>
 
@@ -889,13 +947,12 @@ export default function CampaignsPage() {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-hidden rounded-lg border">
+                <div className="overflow-hidden rounded-lg border max-h-[300px] overflow-y-auto">
                   <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 bg-background z-10">
                       <TableRow>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Jour/Date</TableHead>
-                        <TableHead className="w-[80px]">Max</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="w-[100px]">Quantité</TableHead>
                         <TableHead className="w-[50px]"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -903,75 +960,30 @@ export default function CampaignsPage() {
                       {distributions.map((dist, index) => (
                         <TableRow key={index}>
                           <TableCell>
-                            <Select
-                              value={dist.type}
-                              onValueChange={(value: DistributionType) => {
+                            <Input
+                              type="date"
+                              value={dist.specificDate || ''}
+                              onChange={(e) => {
                                 const newDist = [...distributions]
-                                newDist[index].type = value
-                                if (value === 'RECURRING') {
-                                  newDist[index].dayOfWeek = 1
-                                  delete newDist[index].specificDate
-                                } else {
-                                  delete newDist[index].dayOfWeek
-                                  newDist[index].specificDate = ''
-                                }
+                                newDist[index].specificDate = e.target.value
                                 setDistributions(newDist)
                               }}
-                            >
-                              <SelectTrigger className="h-8 w-[120px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="RECURRING">Récurrent</SelectItem>
-                                <SelectItem value="SPECIFIC_DATE">Date</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell>
-                            {dist.type === 'RECURRING' ? (
-                              <Select
-                                value={String(dist.dayOfWeek ?? 1)}
-                                onValueChange={(value) => {
-                                  const newDist = [...distributions]
-                                  newDist[index].dayOfWeek = parseInt(value)
-                                  setDistributions(newDist)
-                                }}
-                              >
-                                <SelectTrigger className="h-8 w-[100px]">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {DAYS_OF_WEEK.map((day) => (
-                                    <SelectItem key={day.value} value={String(day.value)}>
-                                      {day.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <Input
-                                type="date"
-                                value={dist.specificDate || ''}
-                                onChange={(e) => {
-                                  const newDist = [...distributions]
-                                  newDist[index].specificDate = e.target.value
-                                  setDistributions(newDist)
-                                }}
-                                className="h-8 w-[130px]"
-                              />
-                            )}
+                              className="h-8"
+                            />
                           </TableCell>
                           <TableCell>
                             <Input
-                              type="number"
-                              min="1"
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
                               value={dist.maxUnits}
                               onChange={(e) => {
+                                const value = e.target.value.replace(/[^0-9]/g, '')
                                 const newDist = [...distributions]
-                                newDist[index].maxUnits = parseInt(e.target.value) || 1
+                                newDist[index].maxUnits = parseInt(value) || 0
                                 setDistributions(newDist)
                               }}
-                              className="h-8 w-16"
+                              className="h-8 w-20 text-center"
                             />
                           </TableCell>
                           <TableCell>
@@ -999,18 +1011,27 @@ export default function CampaignsPage() {
           {/* Step 3: Procedure Selection or Creation */}
           {createStep === 3 && (
             <div className="grid gap-5 py-4 max-h-[400px] overflow-y-auto">
-              <Tabs value={procedureMode} onValueChange={(v) => setProcedureMode(v as 'template' | 'create')}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="template">Utiliser un template</TabsTrigger>
-                  <TabsTrigger value="create">Créer une procédure</TabsTrigger>
-                </TabsList>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-medium">Procédure de test</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Choisissez un template existant ou ignorez cette étape
+                  </p>
+                </div>
+                <Link href="/dashboard/procedures">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                  >
+                    <PlusIcon className="mr-2 h-4 w-4" />
+                    Créer une procédure
+                  </Button>
+                </Link>
+              </div>
 
-                {/* Template Selection Tab */}
-                <TabsContent value="template" className="mt-4">
-                  <div className="grid gap-4">
-                    <p className="text-xs text-muted-foreground">
-                      Choisissez un template existant ou ignorez cette étape pour en créer un plus tard
-                    </p>
+              <div className="grid gap-4">
+                <div className="grid gap-4">
 
                     {procedureTemplates.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-8 text-center bg-muted/50 rounded-md">
@@ -1073,232 +1094,7 @@ export default function CampaignsPage() {
                       </div>
                     )}
                   </div>
-                </TabsContent>
-
-                {/* Create Procedure Tab */}
-                <TabsContent value="create" className="mt-4">
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="proc-title" className="text-sm font-medium">
-                        Titre de la procédure
-                      </Label>
-                      <Input
-                        id="proc-title"
-                        placeholder="Ex: Instructions de test produit"
-                        value={inlineProcedure.title}
-                        onChange={(e) => setInlineProcedure({ ...inlineProcedure, title: e.target.value })}
-                        className="h-10"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="proc-description" className="text-sm font-medium">
-                        Description
-                      </Label>
-                      <Textarea
-                        id="proc-description"
-                        placeholder="Décrivez la procédure..."
-                        value={inlineProcedure.description}
-                        onChange={(e) => setInlineProcedure({ ...inlineProcedure, description: e.target.value })}
-                        className="min-h-[60px] resize-none"
-                      />
-                    </div>
-
-                    {/* Steps */}
-                    <div className="grid gap-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm font-medium">
-                          Étapes de la procédure
-                        </Label>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setInlineSteps([...inlineSteps, {
-                              title: '',
-                              description: '',
-                              type: 'TEXT',
-                              isRequired: true,
-                              checklistItems: [],
-                            }])
-                          }}
-                        >
-                          <PlusIcon className="mr-2 h-4 w-4" />
-                          Ajouter une étape
-                        </Button>
-                      </div>
-                    </div>
-
-                    {inlineSteps.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-6 text-center bg-muted/50 rounded-md">
-                        <ListChecksIcon className="h-6 w-6 text-muted-foreground mb-2" />
-                        <p className="text-sm text-muted-foreground">
-                          Aucune étape ajoutée
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Ajoutez des étapes pour guider le testeur
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {inlineSteps.map((step, index) => (
-                          <div key={index} className="p-3 bg-muted/50 rounded-md space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <GripVerticalIcon className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm font-medium">Étape {index + 1}</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                {index > 0 && (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7"
-                                    onClick={() => {
-                                      const newSteps = [...inlineSteps]
-                                      ;[newSteps[index - 1], newSteps[index]] = [newSteps[index], newSteps[index - 1]]
-                                      setInlineSteps(newSteps)
-                                    }}
-                                  >
-                                    <ChevronUpIcon className="h-4 w-4" />
-                                  </Button>
-                                )}
-                                {index < inlineSteps.length - 1 && (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7"
-                                    onClick={() => {
-                                      const newSteps = [...inlineSteps]
-                                      ;[newSteps[index], newSteps[index + 1]] = [newSteps[index + 1], newSteps[index]]
-                                      setInlineSteps(newSteps)
-                                    }}
-                                  >
-                                    <ChevronDownIcon className="h-4 w-4" />
-                                  </Button>
-                                )}
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                  onClick={() => {
-                                    setInlineSteps(inlineSteps.filter((_, i) => i !== index))
-                                  }}
-                                >
-                                  <XIcon className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-
-                            <div className="grid gap-2">
-                              <Input
-                                placeholder="Titre de l'étape"
-                                value={step.title}
-                                onChange={(e) => {
-                                  const newSteps = [...inlineSteps]
-                                  newSteps[index].title = e.target.value
-                                  setInlineSteps(newSteps)
-                                }}
-                                className="h-9"
-                              />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="grid gap-1">
-                                <Label className="text-xs text-muted-foreground">Type</Label>
-                                <Select
-                                  value={step.type}
-                                  onValueChange={(value: StepType) => {
-                                    const newSteps = [...inlineSteps]
-                                    newSteps[index].type = value
-                                    setInlineSteps(newSteps)
-                                  }}
-                                >
-                                  <SelectTrigger className="h-8">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {STEP_TYPES.map((type) => (
-                                      <SelectItem key={type.value} value={type.value}>
-                                        {type.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="grid gap-1">
-                                <Label className="text-xs text-muted-foreground">Requis</Label>
-                                <div className="flex items-center h-8">
-                                  <Switch
-                                    checked={step.isRequired}
-                                    onCheckedChange={(checked) => {
-                                      const newSteps = [...inlineSteps]
-                                      newSteps[index].isRequired = checked
-                                      setInlineSteps(newSteps)
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-
-                            {step.type === 'CHECKLIST' && (
-                              <div className="grid gap-2">
-                                <Label className="text-xs text-muted-foreground">Items de la checklist</Label>
-                                <div className="space-y-2">
-                                  {step.checklistItems.map((item, itemIndex) => (
-                                    <div key={itemIndex} className="flex items-center gap-2">
-                                      <Input
-                                        value={item}
-                                        onChange={(e) => {
-                                          const newSteps = [...inlineSteps]
-                                          newSteps[index].checklistItems[itemIndex] = e.target.value
-                                          setInlineSteps(newSteps)
-                                        }}
-                                        className="h-8 flex-1"
-                                        placeholder={`Item ${itemIndex + 1}`}
-                                      />
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        onClick={() => {
-                                          const newSteps = [...inlineSteps]
-                                          newSteps[index].checklistItems = step.checklistItems.filter((_, i) => i !== itemIndex)
-                                          setInlineSteps(newSteps)
-                                        }}
-                                      >
-                                        <XIcon className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  ))}
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="w-full"
-                                    onClick={() => {
-                                      const newSteps = [...inlineSteps]
-                                      newSteps[index].checklistItems = [...step.checklistItems, '']
-                                      setInlineSteps(newSteps)
-                                    }}
-                                  >
-                                    <PlusIcon className="mr-2 h-3 w-3" />
-                                    Ajouter un item
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-              </Tabs>
+                </div>
             </div>
           )}
 
@@ -1488,11 +1284,15 @@ export default function CampaignsPage() {
                     </Label>
                     <Input
                       id="edit-totalSlots"
-                      type="number"
-                      min="1"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       placeholder="10"
                       value={editForm.totalSlots}
-                      onChange={(e) => setEditForm({ ...editForm, totalSlots: parseInt(e.target.value) || 1 })}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^0-9]/g, '')
+                        setEditForm({ ...editForm, totalSlots: parseInt(value) || 0 })
+                      }}
                       className="h-10"
                     />
                   </div>
@@ -1509,115 +1309,14 @@ export default function CampaignsPage() {
                         </Link>
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        {editProducts.length > 0 && (
-                          <div className="overflow-hidden rounded-lg border">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Produit</TableHead>
-                                  <TableHead className="w-[80px]">Qté</TableHead>
-                                  <TableHead className="w-[100px]">Prix</TableHead>
-                                  <TableHead className="w-[50px]"></TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {editProducts.map((sp, index) => {
-                                  const product = products.find(p => p.id === sp.productId)
-                                  return (
-                                    <TableRow key={index}>
-                                      <TableCell>
-                                        <div className="flex items-center gap-2">
-                                          <PackageIcon className="h-4 w-4 text-muted-foreground" />
-                                          <span className="text-sm font-medium truncate">{product?.name || 'Produit inconnu'}</span>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell>
-                                        <Input
-                                          type="number"
-                                          min="1"
-                                          value={sp.quantity}
-                                          onChange={(e) => {
-                                            const newProducts = [...editProducts]
-                                            newProducts[index].quantity = parseInt(e.target.value) || 1
-                                            setEditProducts(newProducts)
-                                          }}
-                                          className="h-8 w-16 text-sm"
-                                        />
-                                      </TableCell>
-                                      <TableCell>
-                                        <Input
-                                          type="number"
-                                          min="0"
-                                          step="0.01"
-                                          value={sp.expectedPrice}
-                                          onChange={(e) => {
-                                            const newProducts = [...editProducts]
-                                            newProducts[index].expectedPrice = parseFloat(e.target.value) || 0
-                                            setEditProducts(newProducts)
-                                          }}
-                                          className="h-8 w-20 text-sm"
-                                        />
-                                      </TableCell>
-                                      <TableCell>
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                          onClick={() => {
-                                            setEditProducts(editProducts.filter((_, i) => i !== index))
-                                          }}
-                                        >
-                                          <XIcon className="h-4 w-4" />
-                                        </Button>
-                                      </TableCell>
-                                    </TableRow>
-                                  )
-                                })}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        )}
-
-                        {products.filter(p => !editProducts.some(sp => sp.productId === p.id)).length > 0 && (
-                          <Select
-                            value=""
-                            onValueChange={(value) => {
-                              if (value) {
-                                const product = products.find(p => p.id === value)
-                                const defaultPrice = product?.price || 0
-                                setEditProducts([...editProducts, {
-                                  productId: value,
-                                  quantity: 1,
-                                  expectedPrice: defaultPrice
-                                }])
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="h-10">
-                              <SelectValue placeholder="Ajouter un produit..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {products
-                                .filter(p => !editProducts.some(sp => sp.productId === p.id))
-                                .map((product) => (
-                                  <SelectItem key={product.id} value={product.id}>
-                                    <div className="flex items-center gap-2">
-                                      <PackageIcon className="h-4 w-4 text-muted-foreground" />
-                                      <span>{product.name}</span>
-                                      {product.price && (
-                                        <span className="text-muted-foreground">
-                                          - {product.price}€
-                                        </span>
-                                      )}
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </div>
+                      <CampaignProductConfig
+                        products={products}
+                        selectedProduct={editProduct}
+                        totalSlots={editForm.totalSlots}
+                        onSelectProduct={handleEditSelectProduct}
+                        onUpdateProduct={handleEditUpdateProduct}
+                        onRemoveProduct={handleEditRemoveProduct}
+                      />
                     )}
                   </div>
                 </div>
@@ -1625,11 +1324,53 @@ export default function CampaignsPage() {
 
               {/* Step 2: Distributions */}
               {editStep === 2 && (
-                <div className="grid gap-5 py-4 max-h-[400px] overflow-y-auto">
+                <div className="grid gap-5 py-4">
+                  {/* Nombre total de produits - Sticky en haut */}
+                  <Card className="border-primary/20 bg-primary/5 sticky top-0 z-10">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label className="text-sm font-medium">Nombre total de produits</Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Modifiable depuis cette section
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={editForm.totalSlots}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/[^0-9]/g, '')
+                              setEditForm({ ...editForm, totalSlots: parseInt(value) || 0 })
+                            }}
+                            className="h-9 w-20 text-center font-bold text-lg"
+                          />
+                          <span className="text-sm text-muted-foreground">produits</span>
+                        </div>
+                      </div>
+                      
+                      {editDistributions.length > 0 && (() => {
+                        const totalDistributed = editDistributions.reduce((sum, d) => sum + (d.maxUnits || 0), 0)
+                        const remaining = editForm.totalSlots - totalDistributed
+                        return (
+                          <div className="mt-3 pt-3 border-t flex justify-between text-sm">
+                            <span className="text-muted-foreground">Produits distribués:</span>
+                            <span className="font-medium">{totalDistributed}</span>
+                            <span className={`font-bold ${remaining < 0 ? 'text-destructive' : remaining === 0 ? 'text-green-600' : 'text-orange-500'}`}>
+                              Restants: {remaining}
+                            </span>
+                          </div>
+                        )
+                      })()}
+                    </CardContent>
+                  </Card>
+
                   <div className="grid gap-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-medium">
-                        Créneaux de distribution
+                        Dates de distribution
                       </Label>
                       <Button
                         type="button"
@@ -1637,8 +1378,8 @@ export default function CampaignsPage() {
                         size="sm"
                         onClick={() => {
                           setEditDistributions([...editDistributions, {
-                            type: 'RECURRING',
-                            dayOfWeek: 1,
+                            type: 'SPECIFIC_DATE',
+                            specificDate: '',
                             maxUnits: 5,
                             isActive: true,
                           }])
@@ -1649,7 +1390,7 @@ export default function CampaignsPage() {
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Définissez quand et combien de produits peuvent être distribués
+                      Définissez quand et combien de produits seront distribués
                     </p>
                   </div>
 
@@ -1661,13 +1402,12 @@ export default function CampaignsPage() {
                       </p>
                     </div>
                   ) : (
-                    <div className="overflow-hidden rounded-lg border">
+                    <div className="overflow-hidden rounded-lg border max-h-[300px] overflow-y-auto">
                       <Table>
-                        <TableHeader>
+                        <TableHeader className="sticky top-0 bg-background z-10">
                           <TableRow>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Jour/Date</TableHead>
-                            <TableHead className="w-[80px]">Max</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="w-[100px]">Quantité</TableHead>
                             <TableHead className="w-[50px]"></TableHead>
                           </TableRow>
                         </TableHeader>
@@ -1675,75 +1415,30 @@ export default function CampaignsPage() {
                           {editDistributions.map((dist, index) => (
                             <TableRow key={index}>
                               <TableCell>
-                                <Select
-                                  value={dist.type}
-                                  onValueChange={(value: DistributionType) => {
+                                <Input
+                                  type="date"
+                                  value={dist.specificDate || ''}
+                                  onChange={(e) => {
                                     const newDist = [...editDistributions]
-                                    newDist[index].type = value
-                                    if (value === 'RECURRING') {
-                                      newDist[index].dayOfWeek = 1
-                                      delete newDist[index].specificDate
-                                    } else {
-                                      delete newDist[index].dayOfWeek
-                                      newDist[index].specificDate = ''
-                                    }
+                                    newDist[index].specificDate = e.target.value
                                     setEditDistributions(newDist)
                                   }}
-                                >
-                                  <SelectTrigger className="h-8 w-[120px]">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="RECURRING">Récurrent</SelectItem>
-                                    <SelectItem value="SPECIFIC_DATE">Date</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                              <TableCell>
-                                {dist.type === 'RECURRING' ? (
-                                  <Select
-                                    value={String(dist.dayOfWeek ?? 1)}
-                                    onValueChange={(value) => {
-                                      const newDist = [...editDistributions]
-                                      newDist[index].dayOfWeek = parseInt(value)
-                                      setEditDistributions(newDist)
-                                    }}
-                                  >
-                                    <SelectTrigger className="h-8 w-[100px]">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {DAYS_OF_WEEK.map((day) => (
-                                        <SelectItem key={day.value} value={String(day.value)}>
-                                          {day.label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    type="date"
-                                    value={dist.specificDate || ''}
-                                    onChange={(e) => {
-                                      const newDist = [...editDistributions]
-                                      newDist[index].specificDate = e.target.value
-                                      setEditDistributions(newDist)
-                                    }}
-                                    className="h-8 w-[130px]"
-                                  />
-                                )}
+                                  className="h-8"
+                                />
                               </TableCell>
                               <TableCell>
                                 <Input
-                                  type="number"
-                                  min="1"
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
                                   value={dist.maxUnits}
                                   onChange={(e) => {
+                                    const value = e.target.value.replace(/[^0-9]/g, '')
                                     const newDist = [...editDistributions]
-                                    newDist[index].maxUnits = parseInt(e.target.value) || 1
+                                    newDist[index].maxUnits = parseInt(value) || 0
                                     setEditDistributions(newDist)
                                   }}
-                                  className="h-8 w-16"
+                                  className="h-8 w-20 text-center"
                                 />
                               </TableCell>
                               <TableCell>
@@ -1771,11 +1466,22 @@ export default function CampaignsPage() {
               {/* Step 3: Procedures */}
               {editStep === 3 && (
                 <div className="grid gap-5 py-4 max-h-[400px] overflow-y-auto">
+                  <div className="flex items-center justify-end mb-2">
+                    <Link href="/dashboard/procedures">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                      >
+                        <PlusIcon className="mr-2 h-4 w-4" />
+                        Créer une procédure
+                      </Button>
+                    </Link>
+                  </div>
                   <Tabs value={editProcedureMode} onValueChange={(v) => setEditProcedureMode(v as 'existing' | 'template' | 'create')}>
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid w-full grid-cols-2">
                       <TabsTrigger value="existing">Existant</TabsTrigger>
                       <TabsTrigger value="template">Template</TabsTrigger>
-                      <TabsTrigger value="create">Créer</TabsTrigger>
                     </TabsList>
 
                     {/* Existing Procedures Tab */}
@@ -1891,39 +1597,6 @@ export default function CampaignsPage() {
                             </Table>
                           </div>
                         )}
-                      </div>
-                    </TabsContent>
-
-                    {/* Create Procedure Tab */}
-                    <TabsContent value="create" className="mt-4">
-                      <div className="grid gap-4">
-                        <p className="text-xs text-muted-foreground">
-                          Remplacer les procédures existantes par une nouvelle
-                        </p>
-                        <div className="grid gap-2">
-                          <Label htmlFor="edit-proc-title" className="text-sm font-medium">
-                            Titre de la procédure
-                          </Label>
-                          <Input
-                            id="edit-proc-title"
-                            placeholder="Ex: Instructions de test produit"
-                            value={editInlineProcedure.title}
-                            onChange={(e) => setEditInlineProcedure({ ...editInlineProcedure, title: e.target.value })}
-                            className="h-10"
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="edit-proc-description" className="text-sm font-medium">
-                            Description
-                          </Label>
-                          <Textarea
-                            id="edit-proc-description"
-                            placeholder="Décrivez la procédure..."
-                            value={editInlineProcedure.description}
-                            onChange={(e) => setEditInlineProcedure({ ...editInlineProcedure, description: e.target.value })}
-                            className="min-h-[60px] resize-none"
-                          />
-                        </div>
                       </div>
                     </TabsContent>
                   </Tabs>
@@ -2214,6 +1887,14 @@ export default function CampaignsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Payment Dialog */}
+      <PaymentDialog
+        campaign={payingCampaign}
+        open={isPaymentDialogOpen}
+        onOpenChange={setIsPaymentDialogOpen}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
     </ProtectedRoute>
   )
 }

@@ -3,22 +3,17 @@
 import * as React from "react"
 import {
   ArrowUpCircleIcon,
-  BarChartIcon,
-  ClipboardListIcon,
-  DatabaseIcon,
-  FileIcon,
+  CreditCardIcon,
   HelpCircleIcon,
   LayoutDashboardIcon,
   ListChecksIcon,
   MegaphoneIcon,
   PackageIcon,
-  SearchIcon,
   SettingsIcon,
   TestTubeIcon,
   WalletIcon,
 } from "lucide-react"
 
-import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
@@ -56,14 +51,9 @@ const proNavMain = [
     icon: PackageIcon,
   },
   {
-    title: "Analytics",
-    url: "/dashboard/analytics",
-    icon: BarChartIcon,
-  },
-  {
-    title: "Wallet",
-    url: "/dashboard/wallet",
-    icon: WalletIcon,
+    title: "Mes paiements",
+    url: "/dashboard/payments",
+    icon: CreditCardIcon,
   },
 ]
 
@@ -96,29 +86,6 @@ const navSecondary = [
     title: "Get Help",
     url: "/help",
     icon: HelpCircleIcon,
-  },
-  {
-    title: "Search",
-    url: "#",
-    icon: SearchIcon,
-  },
-]
-
-const documents = [
-  {
-    name: "Data Library",
-    url: "#",
-    icon: DatabaseIcon,
-  },
-  {
-    name: "Reports",
-    url: "#",
-    icon: ClipboardListIcon,
-  },
-  {
-    name: "Word Assistant",
-    url: "#",
-    icon: FileIcon,
   },
 ]
 
@@ -157,7 +124,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navItems} />
-        <NavDocuments items={documents} />
         <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

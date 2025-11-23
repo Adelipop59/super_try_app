@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
 import { PlusIcon, PencilIcon, Trash2Icon, AlertTriangleIcon, PackageIcon } from "lucide-react"
 import { toast } from "sonner"
 import { ProductsDataTable } from "@/components/products-data-table"
@@ -38,6 +39,7 @@ export default function ProductsPage() {
     name: '',
     description: '',
     price: 0,
+    shippingCost: 0,
     amazonUrl: '',
     imageUrl: '',
   })
@@ -50,8 +52,10 @@ export default function ProductsPage() {
     name: '',
     description: '',
     price: 0,
+    shippingCost: 0,
     amazonUrl: '',
     imageUrl: '',
+    isActive: true,
   })
   const [isSaving, setIsSaving] = useState(false)
 
@@ -97,6 +101,7 @@ export default function ProductsPage() {
         name: createForm.name,
         description: createForm.description || undefined,
         price: createForm.price,
+        shippingCost: createForm.shippingCost,
         amazonUrl: createForm.amazonUrl || undefined,
         imageUrl: createForm.imageUrl || undefined,
       })
@@ -107,6 +112,7 @@ export default function ProductsPage() {
         name: '',
         description: '',
         price: 0,
+        shippingCost: 0,
         amazonUrl: '',
         imageUrl: '',
       })
@@ -125,8 +131,10 @@ export default function ProductsPage() {
       name: product.name,
       description: product.description || '',
       price: product.price,
+      shippingCost: product.shippingCost || 0,
       amazonUrl: product.amazonUrl || '',
       imageUrl: product.imageUrl || '',
+      isActive: product.isActive,
     })
     setIsEditDialogOpen(true)
   }
@@ -151,8 +159,10 @@ export default function ProductsPage() {
         name: editForm.name,
         description: editForm.description || undefined,
         price: editForm.price,
+        shippingCost: editForm.shippingCost,
         amazonUrl: editForm.amazonUrl || undefined,
         imageUrl: editForm.imageUrl || undefined,
+        isActive: editForm.isActive,
       })
 
       toast.success('Produit mis à jour avec succès')
@@ -188,6 +198,20 @@ export default function ProductsPage() {
       toast.error('Erreur lors de la suppression du produit')
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  const handleToggleActive = async (product: Product) => {
+    try {
+      await api.updateProduct(product.id, {
+        isActive: !product.isActive,
+      })
+
+      toast.success(product.isActive ? 'Produit désactivé' : 'Produit activé')
+      fetchProducts()
+    } catch (error) {
+      console.error('Failed to toggle product status:', error)
+      toast.error('Erreur lors de la modification du statut')
     }
   }
 
@@ -228,6 +252,7 @@ export default function ProductsPage() {
                     data={products}
                     onEdit={handleEditClick}
                     onDelete={handleDeleteClick}
+                    onToggleActive={handleToggleActive}
                     onAdd={() => setIsCreateDialogOpen(true)}
                   />
                 )}
@@ -295,18 +320,33 @@ export default function ProductsPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="create-amazonUrl" className="text-sm font-medium">
-                  Lien Amazon
+                <Label htmlFor="create-shippingCost" className="text-sm font-medium">
+                  Frais de livraison (€)
                 </Label>
                 <Input
-                  id="create-amazonUrl"
-                  type="url"
-                  placeholder="https://amazon.fr/..."
-                  value={createForm.amazonUrl}
-                  onChange={(e) => setCreateForm({ ...createForm, amazonUrl: e.target.value })}
+                  id="create-shippingCost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="5.99"
+                  value={createForm.shippingCost || ''}
+                  onChange={(e) => setCreateForm({ ...createForm, shippingCost: parseFloat(e.target.value) || 0 })}
                   className="h-10"
                 />
               </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="create-amazonUrl" className="text-sm font-medium">
+                Lien Amazon
+              </Label>
+              <Input
+                id="create-amazonUrl"
+                type="url"
+                placeholder="https://amazon.fr/..."
+                value={createForm.amazonUrl}
+                onChange={(e) => setCreateForm({ ...createForm, amazonUrl: e.target.value })}
+                className="h-10"
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="create-imageUrl" className="text-sm font-medium">
@@ -401,18 +441,33 @@ export default function ProductsPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="edit-amazonUrl" className="text-sm font-medium">
-                  Lien Amazon
+                <Label htmlFor="edit-shippingCost" className="text-sm font-medium">
+                  Frais de livraison (€)
                 </Label>
                 <Input
-                  id="edit-amazonUrl"
-                  type="url"
-                  placeholder="https://amazon.fr/..."
-                  value={editForm.amazonUrl}
-                  onChange={(e) => setEditForm({ ...editForm, amazonUrl: e.target.value })}
+                  id="edit-shippingCost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="5.99"
+                  value={editForm.shippingCost || ''}
+                  onChange={(e) => setEditForm({ ...editForm, shippingCost: parseFloat(e.target.value) || 0 })}
                   className="h-10"
                 />
               </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-amazonUrl" className="text-sm font-medium">
+                Lien Amazon
+              </Label>
+              <Input
+                id="edit-amazonUrl"
+                type="url"
+                placeholder="https://amazon.fr/..."
+                value={editForm.amazonUrl}
+                onChange={(e) => setEditForm({ ...editForm, amazonUrl: e.target.value })}
+                className="h-10"
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-imageUrl" className="text-sm font-medium">
@@ -425,6 +480,21 @@ export default function ProductsPage() {
                 value={editForm.imageUrl}
                 onChange={(e) => setEditForm({ ...editForm, imageUrl: e.target.value })}
                 className="h-10"
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-4 bg-muted/50">
+              <div className="space-y-0.5">
+                <Label htmlFor="edit-isActive" className="text-sm font-medium">
+                  Statut du produit
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {editForm.isActive ? 'Le produit est visible et utilisable dans les campagnes' : 'Le produit est masqué'}
+                </p>
+              </div>
+              <Switch
+                id="edit-isActive"
+                checked={editForm.isActive}
+                onCheckedChange={(checked) => setEditForm({ ...editForm, isActive: checked })}
               />
             </div>
           </div>
