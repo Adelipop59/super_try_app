@@ -18,6 +18,7 @@ import Link from "next/link"
 
 interface ProductConfig {
   productId: string
+  quantity: number
   expectedPrice: number
   shippingCost: number
   reimbursedPrice: boolean
@@ -28,7 +29,6 @@ interface ProductConfig {
 interface CampaignProductConfigProps {
   products: Product[]
   selectedProduct: ProductConfig | null
-  totalSlots: number
   onSelectProduct: (productId: string) => void
   onUpdateProduct: (updates: Partial<ProductConfig>) => void
   onRemoveProduct: () => void
@@ -37,7 +37,6 @@ interface CampaignProductConfigProps {
 export function CampaignProductConfig({
   products,
   selectedProduct,
-  totalSlots,
   onSelectProduct,
   onUpdateProduct,
   onRemoveProduct,
@@ -51,7 +50,7 @@ export function CampaignProductConfig({
       selectedProduct.bonus
     : 0
 
-  const totalCost = pricePerTester * totalSlots
+  const totalCost = selectedProduct ? pricePerTester * selectedProduct.quantity : 0
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('fr-FR', {
@@ -99,11 +98,11 @@ export function CampaignProductConfig({
   return (
     <Card>
       <CardContent className="p-4">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <PackageIcon className="h-5 w-5 text-muted-foreground" />
-            <div>
+        {/* Header avec produit et quantité */}
+        <div className="flex items-start justify-between mb-4 gap-4">
+          <div className="flex items-center gap-2 flex-1">
+            <PackageIcon className="h-5 w-5 text-muted-foreground shrink-0" />
+            <div className="flex-1">
               <h4 className="font-medium">{product?.name || 'Produit inconnu'}</h4>
               <Link 
                 href={`/dashboard/products?edit=${selectedProduct.productId}`}
@@ -113,16 +112,37 @@ export function CampaignProductConfig({
               </Link>
             </div>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-            onClick={onRemoveProduct}
-          >
-            <XIcon className="h-4 w-4" />
-          </Button>
+          
+          {/* Quantité à côté du produit */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="text-right">
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Quantité</Label>
+              <Input
+                type="number"
+                min={1}
+                value={selectedProduct.quantity}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 1
+                  onUpdateProduct({ quantity: value > 0 ? value : 1 })
+                }}
+                className="h-9 w-24 text-center mt-1"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive mt-6"
+              onClick={onRemoveProduct}
+            >
+              <XIcon className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
+        
+        <p className="text-xs text-muted-foreground mb-4 -mt-2">
+          Chaque testeur reçoit 1 produit. Ce nombre correspond aussi au nombre de distributions à créer.
+        </p>
 
         {/* Bonus */}
         <div className="mb-4">
@@ -184,9 +204,9 @@ export function CampaignProductConfig({
         <div className="border-t pt-4 space-y-3">
           <div className="text-sm font-medium mb-2">💰 Détails du coût</div>
           
-          {/* Décomposition par testeur */}
+          {/* Décomposition par unité */}
           <div className="bg-muted/30 rounded-md p-3 space-y-2 text-sm">
-            <div className="font-medium text-muted-foreground mb-1">Par testeur:</div>
+            <div className="font-medium text-muted-foreground mb-1">Coût par unité:</div>
             {selectedProduct.reimbursedPrice && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">• Prix produit</span>
@@ -206,35 +226,35 @@ export function CampaignProductConfig({
               </div>
             )}
             <div className="flex justify-between pt-2 border-t">
-              <span className="font-medium">Total par testeur</span>
+              <span className="font-medium">Total unitaire</span>
               <span className="text-lg font-bold text-primary">{formatPrice(pricePerTester)}</span>
             </div>
           </div>
           
-          {/* Calcul total campagne */}
-          {totalSlots > 0 && (
+          {/* Calcul total basé sur quantity */}
+          {selectedProduct.quantity > 0 && (
             <div className="bg-primary/5 rounded-md p-3 space-y-2 text-sm">
-              <div className="font-medium text-muted-foreground mb-1">Pour toute la campagne:</div>
+              <div className="font-medium text-muted-foreground mb-1">Coût total ({selectedProduct.quantity} unités):</div>
               {selectedProduct.reimbursedPrice && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">• Prix produits ({totalSlots} × {formatPrice(product?.price || 0)})</span>
-                  <span className="font-medium">{formatPrice((product?.price || 0) * totalSlots)}</span>
+                  <span className="text-muted-foreground">• Prix produits ({selectedProduct.quantity} × {formatPrice(product?.price || 0)})</span>
+                  <span className="font-medium">{formatPrice((product?.price || 0) * selectedProduct.quantity)}</span>
                 </div>
               )}
               {selectedProduct.reimbursedShipping && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">• Frais livraison ({totalSlots} × {formatPrice(product?.shippingCost || 0)})</span>
-                  <span className="font-medium">{formatPrice((product?.shippingCost || 0) * totalSlots)}</span>
+                  <span className="text-muted-foreground">• Frais livraison ({selectedProduct.quantity} × {formatPrice(product?.shippingCost || 0)})</span>
+                  <span className="font-medium">{formatPrice((product?.shippingCost || 0) * selectedProduct.quantity)}</span>
                 </div>
               )}
               {selectedProduct.bonus > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">• Bonus ({totalSlots} × {formatPrice(selectedProduct.bonus)})</span>
-                  <span className="font-medium text-green-600">+{formatPrice(selectedProduct.bonus * totalSlots)}</span>
+                  <span className="text-muted-foreground">• Bonus ({selectedProduct.quantity} × {formatPrice(selectedProduct.bonus)})</span>
+                  <span className="font-medium text-green-600">+{formatPrice(selectedProduct.bonus * selectedProduct.quantity)}</span>
                 </div>
               )}
               <div className="flex justify-between pt-2 border-t">
-                <span className="font-bold">💸 Coût total</span>
+                <span className="font-bold">💸 Coût total campagne</span>
                 <span className="text-xl font-bold text-green-600">{formatPrice(totalCost)}</span>
               </div>
             </div>

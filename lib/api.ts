@@ -72,6 +72,33 @@ export interface CampaignProduct {
   product?: Product
 }
 
+// Campaign Criteria interfaces
+export type GenderRequirement = 'M' | 'F' | 'ALL' | null
+
+export interface CampaignCriteria {
+  id?: string
+  campaignId?: string
+  minAge?: number | null
+  maxAge?: number | null
+  minRating?: number | null
+  maxRating?: number | null
+  minCompletedSessions?: number | null
+  requiredGender?: GenderRequirement
+  requiredCountries?: string[] | null
+  requiredLocations?: string[] | null
+  excludedLocations?: string[] | null
+  requiredCategories?: string[] | null
+  noActiveSessionWithSeller?: boolean | null
+  maxSessionsPerWeek?: number | null
+  maxSessionsPerMonth?: number | null
+  minCompletionRate?: number | null
+  maxCancellationRate?: number | null
+  minAccountAge?: number | null
+  lastActiveWithinDays?: number | null
+  requireVerified?: boolean | null
+  requirePrime?: boolean | null
+}
+
 export interface Campaign {
   id: string
   title: string
@@ -82,8 +109,29 @@ export interface Campaign {
   startDate?: string
   endDate?: string
   products?: CampaignProduct[]
+  criteria?: CampaignCriteria | null
   createdAt: string
   updatedAt: string
+}
+
+export interface CampaignCostOffer {
+  productId: string
+  productName: string
+  quantity: number
+  expectedPrice: number
+  shippingCost: number
+  bonus: number
+  costPerUnit: number
+  totalCost: number
+}
+
+export interface CampaignCostResponse {
+  campaignId: string
+  campaignTitle: string
+  offers: CampaignCostOffer[]
+  totalCampaignCost: number
+  totalCampaignCostCents: number
+  currency: string
 }
 
 export interface Product {
@@ -227,6 +275,80 @@ export interface UpdateProcedureTemplateData {
   title?: string
   description?: string
   steps?: CreateStepTemplateData[]
+}
+
+// Criteria Template interfaces
+export interface CriteriaTemplate {
+  id: string
+  sellerId: string
+  name: string
+  minAge?: number | null
+  maxAge?: number | null
+  minRating?: number | null
+  maxRating?: number | null
+  minCompletedSessions?: number | null
+  requiredGender?: GenderRequirement
+  requiredCountries?: string[] | null
+  requiredLocations?: string[] | null
+  excludedLocations?: string[] | null
+  requiredCategories?: string[] | null
+  noActiveSessionWithSeller?: boolean | null
+  maxSessionsPerWeek?: number | null
+  maxSessionsPerMonth?: number | null
+  minCompletionRate?: number | null
+  maxCancellationRate?: number | null
+  minAccountAge?: number | null
+  lastActiveWithinDays?: number | null
+  requireVerified?: boolean | null
+  requirePrime?: boolean | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateCriteriaTemplateData {
+  name: string
+  minAge?: number | null
+  maxAge?: number | null
+  minRating?: number | null
+  maxRating?: number | null
+  minCompletedSessions?: number | null
+  requiredGender?: GenderRequirement
+  requiredCountries?: string[] | null
+  requiredLocations?: string[] | null
+  excludedLocations?: string[] | null
+  requiredCategories?: string[] | null
+  noActiveSessionWithSeller?: boolean | null
+  maxSessionsPerWeek?: number | null
+  maxSessionsPerMonth?: number | null
+  minCompletionRate?: number | null
+  maxCancellationRate?: number | null
+  minAccountAge?: number | null
+  lastActiveWithinDays?: number | null
+  requireVerified?: boolean | null
+  requirePrime?: boolean | null
+}
+
+export interface UpdateCriteriaTemplateData {
+  name?: string
+  minAge?: number | null
+  maxAge?: number | null
+  minRating?: number | null
+  maxRating?: number | null
+  minCompletedSessions?: number | null
+  requiredGender?: GenderRequirement
+  requiredCountries?: string[] | null
+  requiredLocations?: string[] | null
+  excludedLocations?: string[] | null
+  requiredCategories?: string[] | null
+  noActiveSessionWithSeller?: boolean | null
+  maxSessionsPerWeek?: number | null
+  maxSessionsPerMonth?: number | null
+  minCompletionRate?: number | null
+  maxCancellationRate?: number | null
+  minAccountAge?: number | null
+  lastActiveWithinDays?: number | null
+  requireVerified?: boolean | null
+  requirePrime?: boolean | null
 }
 
 // Pagination interfaces
@@ -537,6 +659,10 @@ class ApiClient {
     return this.request<Campaign>(`/campaigns/${id}`)
   }
 
+  async getCampaignCost(id: string): Promise<CampaignCostResponse> {
+    return this.request<CampaignCostResponse>(`/campaigns/${id}/cost`)
+  }
+
   async createCampaign(data: {
     title: string
     description?: string
@@ -778,6 +904,76 @@ class ApiClient {
     return this.request<Procedure>(`/procedure-templates/${templateId}/copy-to-campaign/${campaignId}`, {
       method: 'POST',
       body: JSON.stringify({ order }),
+    })
+  }
+
+  // Criteria Templates endpoints
+  async getCriteriaTemplates(page: number = 1, limit: number = 100): Promise<CriteriaTemplate[]> {
+    const response = await this.request<PaginatedResponse<CriteriaTemplate>>(`/criteria-templates?page=${page}&limit=${limit}`)
+    return response.data
+  }
+
+  async getCriteriaTemplatesPaginated(page: number = 1, limit: number = 20): Promise<PaginatedResponse<CriteriaTemplate>> {
+    return this.request<PaginatedResponse<CriteriaTemplate>>(`/criteria-templates?page=${page}&limit=${limit}`)
+  }
+
+  async getCriteriaTemplate(id: string): Promise<CriteriaTemplate> {
+    return this.request<CriteriaTemplate>(`/criteria-templates/${id}`)
+  }
+
+  async createCriteriaTemplate(data: CreateCriteriaTemplateData): Promise<CriteriaTemplate> {
+    return this.request<CriteriaTemplate>('/criteria-templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateCriteriaTemplate(id: string, data: UpdateCriteriaTemplateData): Promise<CriteriaTemplate> {
+    return this.request<CriteriaTemplate>(`/criteria-templates/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteCriteriaTemplate(id: string): Promise<{ message: string }> {
+    return this.request(`/criteria-templates/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async applyCriteriaTemplateToCampaign(templateId: string, campaignId: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/criteria-templates/${templateId}/apply/${campaignId}`, {
+      method: 'POST',
+    })
+  }
+
+  // Campaign Criteria endpoints
+  async createCampaignCriteria(campaignId: string, data: Partial<CampaignCriteria>): Promise<CampaignCriteria> {
+    return this.request<CampaignCriteria>(`/campaigns/${campaignId}/criteria`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getCampaignCriteria(campaignId: string): Promise<CampaignCriteria | null> {
+    try {
+      return await this.request<CampaignCriteria>(`/campaigns/${campaignId}/criteria`)
+    } catch (error) {
+      // If criteria don't exist, return null
+      return null
+    }
+  }
+
+  async updateCampaignCriteria(campaignId: string, data: Partial<CampaignCriteria>): Promise<CampaignCriteria> {
+    return this.request<CampaignCriteria>(`/campaigns/${campaignId}/criteria`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteCampaignCriteria(campaignId: string): Promise<{ message: string }> {
+    return this.request(`/campaigns/${campaignId}/criteria`, {
+      method: 'DELETE',
     })
   }
 

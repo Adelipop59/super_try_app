@@ -4,6 +4,7 @@ import * as React from "react"
 import {
   ArrowUpCircleIcon,
   CreditCardIcon,
+  FilterIcon,
   HelpCircleIcon,
   LayoutDashboardIcon,
   ListChecksIcon,
@@ -44,6 +45,11 @@ const proNavMain = [
     title: "Procedures",
     url: "/dashboard/procedures",
     icon: ListChecksIcon,
+  },
+  {
+    title: "Criteres",
+    url: "/dashboard/criteria-templates",
+    icon: FilterIcon,
   },
   {
     title: "Products",

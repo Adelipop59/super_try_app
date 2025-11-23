@@ -10,8 +10,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { api, Campaign, CheckoutSessionResponse, ApiError } from "@/lib/api"
-import { CreditCardIcon, Loader2Icon, AlertCircleIcon, ExternalLinkIcon } from "lucide-react"
+import { api, Campaign, CheckoutSessionResponse, ApiError, CampaignCostResponse } from "@/lib/api"
+import { CreditCardIcon, Loader2Icon, AlertCircleIcon, ExternalLinkIcon, PackageIcon } from "lucide-react"
 
 interface PaymentDialogProps {
   campaign: Campaign | null
@@ -26,6 +26,7 @@ export function PaymentDialog({
   onOpenChange,
 }: PaymentDialogProps) {
   const [checkoutSession, setCheckoutSession] = useState<CheckoutSessionResponse | null>(null)
+  const [costDetails, setCostDetails] = useState<CampaignCostResponse | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isRedirecting, setIsRedirecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,17 +34,18 @@ export function PaymentDialog({
 
   useEffect(() => {
     if (open && campaign) {
-      createCheckoutSession()
+      loadCostDetailsAndCreateSession()
     } else {
       // Reset state when dialog closes
       setCheckoutSession(null)
+      setCostDetails(null)
       setError(null)
       setErrorDetails([])
       setIsRedirecting(false)
     }
   }, [open, campaign])
 
-  const createCheckoutSession = async () => {
+  const loadCostDetailsAndCreateSession = async () => {
     if (!campaign) return
 
     setIsLoading(true)
@@ -51,6 +53,10 @@ export function PaymentDialog({
     setErrorDetails([])
 
     try {
+      // Charger les détails du coût
+      const costResponse = await api.getCampaignCost(campaign.id)
+      setCostDetails(costResponse)
+
       // Construire les URLs complètes
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001'
       const successUrl = `${baseUrl}/dashboard/campaigns?payment=success&campaign=${campaign.id}`
@@ -152,16 +158,58 @@ export function PaymentDialog({
           </div>
         )}
 
-        {checkoutSession && !isLoading && !error && (
+        {checkoutSession && costDetails && !isLoading && !error && (
           <div className="space-y-6">
+            {/* Campagne info */}
             <div className="rounded-lg border bg-muted/50 p-4">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-muted-foreground">Campagne</span>
-                <span className="font-medium">{campaign?.title}</span>
-              </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Montant total</span>
-                <span className="text-lg font-bold">{formatAmount(checkoutSession.amount)}</span>
+                <span className="text-sm text-muted-foreground">Campagne</span>
+                <span className="font-medium">{costDetails.campaignTitle}</span>
+              </div>
+            </div>
+
+            {/* Détails par produit/offre */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold">Détails du coût</h4>
+              {costDetails.offers.map((offer, index) => (
+                <div key={index} className="rounded-lg border p-4 space-y-3">
+                  <div className="flex items-center gap-2 mb-3">
+                    <PackageIcon className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{offer.productName}</span>
+                    <span className="text-xs text-muted-foreground">× {offer.quantity}</span>
+                  </div>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Prix produit :</span>
+                      <span>{formatAmount(offer.expectedPrice * 100)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Frais de livraison :</span>
+                      <span>{formatAmount(offer.shippingCost * 100)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Bonus testeur :</span>
+                      <span className="text-green-600">+{formatAmount(offer.bonus * 100)}</span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t font-medium">
+                      <span>Coût unitaire :</span>
+                      <span>{formatAmount(offer.costPerUnit * 100)}</span>
+                    </div>
+                    <div className="flex justify-between text-base font-bold pt-2 border-t">
+                      <span>Total ({offer.quantity} × {formatAmount(offer.costPerUnit * 100)}) :</span>
+                      <span className="text-primary">{formatAmount(offer.totalCost * 100)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Total campagne */}
+            <div className="rounded-lg border bg-primary/5 p-4">
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-bold">Coût total de la campagne</span>
+                <span className="text-2xl font-bold text-primary">{formatAmount(costDetails.totalCampaignCostCents)}</span>
               </div>
             </div>
 
@@ -190,7 +238,7 @@ export function PaymentDialog({
                 ) : (
                   <>
                     <ExternalLinkIcon className="mr-2 h-4 w-4" />
-                    Payer {formatAmount(checkoutSession.amount)}
+                    Payer {formatAmount(costDetails.totalCampaignCostCents)}
                   </>
                 )}
               </Button>

@@ -11,7 +11,7 @@ import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/auth-context"
 import { api, DashboardStats } from "@/lib/api"
 
-import data from "./data.json"
+import data from "@/lib/data/mock-data.json"
 
 export default function Page() {
   const { user } = useAuth()

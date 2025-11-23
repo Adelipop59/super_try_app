@@ -7,7 +7,7 @@ import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/auth-context"
-import { api, Campaign, Product, CampaignProduct, CreateDistributionData, DistributionType, ProcedureTemplate, StepType, CreateStepTemplateData, Distribution, Procedure } from "@/lib/api"
+import { api, Campaign, Product, CampaignProduct, CreateDistributionData, DistributionType, ProcedureTemplate, StepType, CreateStepTemplateData, Distribution, Procedure, CampaignCriteria, CriteriaTemplate } from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -49,7 +49,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { PlusIcon, PencilIcon, Trash2Icon, AlertTriangleIcon, PackageIcon, XIcon, CalendarIcon, CheckIcon, ListChecksIcon, ChevronUpIcon, ChevronDownIcon, GripVerticalIcon, ClipboardListIcon, EyeIcon, CreditCardIcon } from "lucide-react"
+import { PlusIcon, PencilIcon, Trash2Icon, AlertTriangleIcon, PackageIcon, XIcon, CalendarIcon, CheckIcon, ListChecksIcon, ChevronUpIcon, ChevronDownIcon, GripVerticalIcon, ClipboardListIcon, EyeIcon, CreditCardIcon, FilterIcon } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import Link from "next/link"
@@ -57,6 +57,7 @@ import { toast } from "sonner"
 import { CampaignsDataTable } from "@/components/campaigns-data-table"
 import { PaymentDialog } from "@/components/payment-dialog"
 import { CampaignProductConfig } from "@/components/campaign-product-config"
+import { CampaignCriteriaConfig } from "@/components/campaign-criteria-config"
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -84,6 +85,7 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [procedureTemplates, setProcedureTemplates] = useState<ProcedureTemplate[]>([])
+  const [criteriaTemplates, setCriteriaTemplates] = useState<CriteriaTemplate[]>([])
   const [loading, setLoading] = useState(true)
 
   // Edit state
@@ -99,6 +101,7 @@ export default function CampaignsPage() {
   })
   const [editProduct, setEditProduct] = useState<{
     productId: string
+    quantity: number
     expectedPrice: number
     shippingCost: number
     reimbursedPrice: boolean
@@ -127,6 +130,10 @@ export default function CampaignsPage() {
     isRequired: boolean
     checklistItems: string[]
   }[]>([])
+  const [editCriteria, setEditCriteria] = useState<Partial<CampaignCriteria>>({})
+  const [editHasExistingCriteria, setEditHasExistingCriteria] = useState(false)
+  const [editCriteriaMode, setEditCriteriaMode] = useState<'manual' | 'template'>('manual')
+  const [editSelectedCriteriaTemplateId, setEditSelectedCriteriaTemplateId] = useState<string>('')
   const [isSaving, setIsSaving] = useState(false)
   const [isLoadingEditData, setIsLoadingEditData] = useState(false)
 
@@ -149,6 +156,7 @@ export default function CampaignsPage() {
   })
   const [selectedProduct, setSelectedProduct] = useState<{
     productId: string
+    quantity: number
     expectedPrice: number
     shippingCost: number
     reimbursedPrice: boolean
@@ -175,6 +183,9 @@ export default function CampaignsPage() {
     isRequired: boolean
     checklistItems: string[]
   }[]>([])
+  const [createCriteria, setCreateCriteria] = useState<Partial<CampaignCriteria>>({})
+  const [createCriteriaMode, setCreateCriteriaMode] = useState<'manual' | 'template'>('manual')
+  const [createSelectedCriteriaTemplateId, setCreateSelectedCriteriaTemplateId] = useState<string>('')
   const [isCreating, setIsCreating] = useState(false)
 
   const STEP_TYPES: { value: StepType; label: string }[] = [
@@ -236,19 +247,22 @@ export default function CampaignsPage() {
 
     try {
       setLoading(true)
-      const [campaignsData, productsData, templatesData] = await Promise.all([
+      const [campaignsData, productsData, templatesData, criteriaTemplatesData] = await Promise.all([
         api.getMyCampaigns(),
         api.getMyProducts(),
-        api.getProcedureTemplates()
+        api.getProcedureTemplates(),
+        api.getCriteriaTemplates()
       ])
       setCampaigns(campaignsData)
       setProducts(productsData)
       setProcedureTemplates(templatesData)
+      setCriteriaTemplates(criteriaTemplatesData)
     } catch (error) {
       console.error('Failed to fetch data:', error)
       setCampaigns([])
       setProducts([])
       setProcedureTemplates([])
+      setCriteriaTemplates([])
     } finally {
       setLoading(false)
     }
@@ -281,6 +295,7 @@ export default function CampaignsPage() {
       const cp = campaign.products[0]
       setEditProduct({
         productId: cp.productId,
+        quantity: cp.quantity || 1,
         expectedPrice: cp.expectedPrice || cp.product?.price || 0,
         shippingCost: cp.shippingCost || cp.product?.shippingCost || 0,
         reimbursedPrice: cp.reimbursedPrice ?? true,
@@ -294,12 +309,13 @@ export default function CampaignsPage() {
     setEditStep(1)
     setIsEditSheetOpen(true)
 
-    // Load distributions and procedures
+    // Load distributions, procedures, and criteria
     setIsLoadingEditData(true)
     try {
-      const [distributionsData, proceduresData] = await Promise.all([
+      const [distributionsData, proceduresData, criteriaData] = await Promise.all([
         api.getDistributions(campaign.id),
-        api.getProcedures(campaign.id)
+        api.getProcedures(campaign.id),
+        api.getCampaignCriteria(campaign.id)
       ])
 
       setEditDistributions(distributionsData.map(d => ({
@@ -316,6 +332,38 @@ export default function CampaignsPage() {
       setEditSelectedTemplateId('')
       setEditInlineProcedure({ title: '', description: '' })
       setEditInlineSteps([])
+
+      // Load existing criteria if any
+      if (criteriaData) {
+        setEditCriteria({
+          minAge: criteriaData.minAge,
+          maxAge: criteriaData.maxAge,
+          minRating: criteriaData.minRating ? Number(criteriaData.minRating) : null,
+          maxRating: criteriaData.maxRating ? Number(criteriaData.maxRating) : null,
+          minCompletedSessions: criteriaData.minCompletedSessions,
+          requiredGender: criteriaData.requiredGender,
+          requiredCountries: criteriaData.requiredCountries || [],
+          requiredLocations: criteriaData.requiredLocations || [],
+          excludedLocations: criteriaData.excludedLocations || [],
+          requiredCategories: criteriaData.requiredCategories || [],
+          noActiveSessionWithSeller: criteriaData.noActiveSessionWithSeller,
+          maxSessionsPerWeek: criteriaData.maxSessionsPerWeek,
+          maxSessionsPerMonth: criteriaData.maxSessionsPerMonth,
+          minCompletionRate: criteriaData.minCompletionRate ? Number(criteriaData.minCompletionRate) : null,
+          maxCancellationRate: criteriaData.maxCancellationRate ? Number(criteriaData.maxCancellationRate) : null,
+          minAccountAge: criteriaData.minAccountAge,
+          lastActiveWithinDays: criteriaData.lastActiveWithinDays,
+          requireVerified: criteriaData.requireVerified,
+          requirePrime: criteriaData.requirePrime,
+        })
+        setEditHasExistingCriteria(true)
+        setEditCriteriaMode('manual')
+      } else {
+        setEditCriteria({})
+        setEditHasExistingCriteria(false)
+        setEditCriteriaMode('manual')
+      }
+      setEditSelectedCriteriaTemplateId('')
     } catch (error) {
       console.error('Failed to load campaign data:', error)
       setEditDistributions([])
@@ -384,6 +432,7 @@ export default function CampaignsPage() {
     if (product) {
       setSelectedProduct({
         productId,
+        quantity: 1,
         expectedPrice: product.price,
         shippingCost: product.shippingCost || 0,
         reimbursedPrice: true,
@@ -415,7 +464,7 @@ export default function CampaignsPage() {
     try {
       setIsSaving(true)
 
-      // Update campaign basic info with products
+      // Step 1: Update campaign basic info with products
       const updateData: {
         title: string
         description: string
@@ -430,7 +479,7 @@ export default function CampaignsPage() {
       } = {
         title: editForm.title,
         description: editForm.description,
-        totalSlots: editForm.totalSlots,
+        totalSlots: editProduct?.quantity || 0,  // Synchronisé avec quantity du produit
       }
 
       // Only include dates if they are set
@@ -447,6 +496,28 @@ export default function CampaignsPage() {
       }
 
       await api.updateCampaign(editingCampaign.id, updateData)
+
+      // Step 2: Handle criteria separately
+      const hasActiveCriteria = Object.entries(editCriteria).some(([key, value]) => {
+        if (key === 'id' || key === 'campaignId') return false
+        if (value === null || value === undefined) return false
+        if (Array.isArray(value) && value.length === 0) return false
+        return true
+      })
+
+      if (hasActiveCriteria) {
+        // Check if criteria already exist
+        if (editHasExistingCriteria) {
+          // Update existing criteria
+          await api.updateCampaignCriteria(editingCampaign.id, editCriteria)
+        } else {
+          // Create new criteria
+          await api.createCampaignCriteria(editingCampaign.id, editCriteria)
+        }
+      } else if (editHasExistingCriteria) {
+        // Delete criteria if they exist but no active criteria set
+        await api.deleteCampaignCriteria(editingCampaign.id)
+      }
 
       // Handle distributions - delete existing and create new ones
       const existingDistributions = await api.getDistributions(editingCampaign.id)
@@ -527,7 +598,7 @@ export default function CampaignsPage() {
       } = {
         title: createForm.title,
         description: createForm.description || undefined,
-        totalSlots: createForm.totalSlots,
+        totalSlots: selectedProduct?.quantity || 0,  // Synchronisé avec quantity du produit
       }
 
       if (createForm.startDate) {
@@ -540,7 +611,19 @@ export default function CampaignsPage() {
         createData.products = [selectedProduct]
       }
 
+      // Step 1: Create campaign (without criteria)
       const campaign = await api.createCampaign(createData)
+
+      // Step 2: Create criteria if any are set
+      const hasActiveCriteria = Object.entries(createCriteria).some(([key, value]) => {
+        if (key === 'id' || key === 'campaignId') return false
+        if (value === null || value === undefined) return false
+        if (Array.isArray(value) && value.length === 0) return false
+        return true
+      })
+      if (hasActiveCriteria) {
+        await api.createCampaignCriteria(campaign.id, createCriteria)
+      }
 
       // Create distributions if any
       if (distributions.length > 0) {
@@ -583,12 +666,15 @@ export default function CampaignsPage() {
         endDate: '',
         totalSlots: 10,
       })
-      setSelectedProducts([])
+      setSelectedProduct(null)
       setDistributions([])
       setSelectedTemplateId('')
       setProcedureMode('template')
       setInlineProcedure({ title: '', description: '' })
       setInlineSteps([])
+      setCreateCriteria({})
+      setCreateCriteriaMode('manual')
+      setCreateSelectedCriteriaTemplateId('')
       fetchCampaigns()
     } catch (error) {
       console.error('Failed to create campaign:', error)
@@ -701,7 +787,7 @@ export default function CampaignsPage() {
               <div>
                 <DialogTitle className="text-xl">Nouvelle campagne</DialogTitle>
                 <DialogDescription>
-                  {createStep === 1 ? 'Informations générales et produits' : createStep === 2 ? 'Configuration des distributions' : 'Sélection de la procédure'}
+                  {createStep === 1 ? 'Informations generales et produits' : createStep === 2 ? 'Configuration des distributions' : createStep === 3 ? 'Criteres d\'eligibilite' : 'Selection de la procedure'}
                 </DialogDescription>
               </div>
             </div>
@@ -723,12 +809,12 @@ export default function CampaignsPage() {
                 Infos
               </span>
             </button>
-            <div className={`h-px w-6 ${createStep >= 2 ? 'bg-primary' : 'bg-muted'}`} />
+            <div className={`h-px w-4 ${createStep >= 2 ? 'bg-primary' : 'bg-muted'}`} />
             <button
               type="button"
               onClick={() => {
                 if (!createForm.title.trim()) {
-                  toast.error('Le titre est requis pour passer à l\'étape suivante')
+                  toast.error('Le titre est requis pour passer a l\'etape suivante')
                   return
                 }
                 setCreateStep(2)
@@ -744,12 +830,12 @@ export default function CampaignsPage() {
                 Distribution
               </span>
             </button>
-            <div className={`h-px w-6 ${createStep >= 3 ? 'bg-primary' : 'bg-muted'}`} />
+            <div className={`h-px w-4 ${createStep >= 3 ? 'bg-primary' : 'bg-muted'}`} />
             <button
               type="button"
               onClick={() => {
                 if (!createForm.title.trim()) {
-                  toast.error('Le titre est requis pour passer à l\'étape suivante')
+                  toast.error('Le titre est requis pour passer a l\'etape suivante')
                   return
                 }
                 setCreateStep(3)
@@ -759,10 +845,31 @@ export default function CampaignsPage() {
               <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
                 createStep >= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
               }`}>
-                3
+                {createStep > 3 ? <CheckIcon className="h-4 w-4" /> : '3'}
               </div>
               <span className={`text-sm hidden sm:inline ${createStep >= 3 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                Procédure
+                Criteres
+              </span>
+            </button>
+            <div className={`h-px w-4 ${createStep >= 4 ? 'bg-primary' : 'bg-muted'}`} />
+            <button
+              type="button"
+              onClick={() => {
+                if (!createForm.title.trim()) {
+                  toast.error('Le titre est requis pour passer a l\'etape suivante')
+                  return
+                }
+                setCreateStep(4)
+              }}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            >
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
+                createStep >= 4 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+              }`}>
+                4
+              </div>
+              <span className={`text-sm hidden sm:inline ${createStep >= 4 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                Procedure
               </span>
             </button>
           </div>
@@ -821,24 +928,6 @@ export default function CampaignsPage() {
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="create-totalSlots" className="text-sm font-medium">
-                  Nombre de slots
-                </Label>
-                <Input
-                  id="create-totalSlots"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="10"
-                  value={createForm.totalSlots}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/[^0-9]/g, '')
-                    setCreateForm({ ...createForm, totalSlots: parseInt(value) || 0 })
-                  }}
-                  className="h-10"
-                />
-              </div>
-              <div className="grid gap-2">
                 <Label className="text-sm font-medium">
                   Produits associés
                 </Label>
@@ -854,7 +943,6 @@ export default function CampaignsPage() {
                   <CampaignProductConfig
                     products={products}
                     selectedProduct={selectedProduct}
-                    totalSlots={createForm.totalSlots}
                     onSelectProduct={handleSelectProduct}
                     onUpdateProduct={handleUpdateProduct}
                     onRemoveProduct={handleRemoveProduct}
@@ -867,42 +955,54 @@ export default function CampaignsPage() {
           {/* Step 2: Distributions */}
           {createStep === 2 && (
             <div className="grid gap-5 py-4">
-              {/* Nombre total de produits - Sticky en haut */}
+              {/* Validation quantity vs distributions - Sticky en haut */}
               <Card className="border-primary/20 bg-primary/5 sticky top-0 z-10">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label className="text-sm font-medium">Nombre total de produits</Label>
+                      <Label className="text-sm font-medium">
+                        {selectedProduct 
+                          ? `Produits: ${selectedProduct.quantity}` 
+                          : 'Aucun produit sélectionné'}
+                      </Label>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Modifiable depuis cette section
+                        Distributions créées: {distributions.length} ligne(s)
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={createForm.totalSlots}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/[^0-9]/g, '')
-                          setCreateForm({ ...createForm, totalSlots: parseInt(value) || 0 })
-                        }}
-                        className="h-9 w-20 text-center font-bold text-lg"
-                      />
-                      <span className="text-sm text-muted-foreground">produits</span>
+                      {selectedProduct && (() => {
+                        const totalDistributed = distributions.reduce((sum, d) => sum + (d.maxUnits || 0), 0)
+                        return totalDistributed === selectedProduct.quantity ? (
+                          <Badge variant="default" className="bg-green-600">✓ Complet</Badge>
+                        ) : totalDistributed > selectedProduct.quantity ? (
+                          <Badge variant="destructive">
+                            Dépassement: +{totalDistributed - selectedProduct.quantity}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+                            {selectedProduct.quantity - totalDistributed} manquant(s)
+                          </Badge>
+                        )
+                      })()}
                     </div>
                   </div>
                   
-                  {distributions.length > 0 && (() => {
+                  {selectedProduct && distributions.length > 0 && (() => {
                     const totalDistributed = distributions.reduce((sum, d) => sum + (d.maxUnits || 0), 0)
-                    const remaining = createForm.totalSlots - totalDistributed
+                    const remaining = selectedProduct.quantity - totalDistributed
                     return (
                       <div className="mt-3 pt-3 border-t flex justify-between text-sm">
                         <span className="text-muted-foreground">Produits distribués:</span>
                         <span className="font-medium">{totalDistributed}</span>
-                        <span className={`font-bold ${remaining < 0 ? 'text-destructive' : remaining === 0 ? 'text-green-600' : 'text-orange-500'}`}>
-                          Restants: {remaining}
-                        </span>
+                        {remaining < 0 ? (
+                          <span className="font-bold text-destructive">
+                            ⚠️ Dépassement de {Math.abs(remaining)} produit{Math.abs(remaining) > 1 ? 's' : ''}
+                          </span>
+                        ) : (
+                          <span className={`font-bold ${remaining === 0 ? 'text-green-600' : 'text-orange-500'}`}>
+                            Restants: {remaining}
+                          </span>
+                        )}
                       </div>
                     )
                   })()}
@@ -922,7 +1022,7 @@ export default function CampaignsPage() {
                       setDistributions([...distributions, {
                         type: 'SPECIFIC_DATE',
                         specificDate: '',
-                        maxUnits: 5,
+                        maxUnits: 1,
                         isActive: true,
                       }])
                     }}
@@ -1008,14 +1108,132 @@ export default function CampaignsPage() {
             </div>
           )}
 
-          {/* Step 3: Procedure Selection or Creation */}
+          {/* Step 3: Criteria */}
           {createStep === 3 && (
             <div className="grid gap-5 py-4 max-h-[400px] overflow-y-auto">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-sm font-medium">Procédure de test</Label>
+                  <Label className="text-sm font-medium">Criteres d'eligibilite</Label>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Choisissez un template existant ou ignorez cette étape
+                    Choisissez un template ou configurez manuellement
+                  </p>
+                </div>
+                <Link href="/dashboard/criteria-templates">
+                  <Button type="button" variant="outline" size="sm">
+                    <PlusIcon className="mr-2 h-4 w-4" />
+                    Gerer les templates
+                  </Button>
+                </Link>
+              </div>
+
+              <Tabs value={createCriteriaMode} onValueChange={(v) => setCreateCriteriaMode(v as 'manual' | 'template')}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="template">Template</TabsTrigger>
+                  <TabsTrigger value="manual">Manuel</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="template" className="mt-4">
+                  {criteriaTemplates.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center bg-muted/50 rounded-md">
+                      <FilterIcon className="h-8 w-8 text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        Aucun template de criteres disponible
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Vous pouvez en creer dans la section Criteres
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-hidden rounded-lg border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Template</TableHead>
+                            <TableHead className="w-[50px]"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {criteriaTemplates.map((template) => (
+                            <TableRow
+                              key={template.id}
+                              className={createSelectedCriteriaTemplateId === template.id ? 'bg-primary/5' : ''}
+                            >
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <FilterIcon className="h-4 w-4 text-muted-foreground" />
+                                  <span className="font-medium">{template.name}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  type="button"
+                                  variant={createSelectedCriteriaTemplateId === template.id ? "default" : "ghost"}
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => {
+                                    if (createSelectedCriteriaTemplateId === template.id) {
+                                      setCreateSelectedCriteriaTemplateId('')
+                                      setCreateCriteria({})
+                                    } else {
+                                      setCreateSelectedCriteriaTemplateId(template.id)
+                                      // Load criteria from template
+                                      setCreateCriteria({
+                                        minAge: template.minAge,
+                                        maxAge: template.maxAge,
+                                        minRating: template.minRating ? Number(template.minRating) : null,
+                                        maxRating: template.maxRating ? Number(template.maxRating) : null,
+                                        minCompletedSessions: template.minCompletedSessions,
+                                        requiredGender: template.requiredGender,
+                                        requiredCountries: template.requiredCountries,
+                                        requiredLocations: template.requiredLocations,
+                                        excludedLocations: template.excludedLocations,
+                                        requiredCategories: template.requiredCategories,
+                                        noActiveSessionWithSeller: template.noActiveSessionWithSeller,
+                                        maxSessionsPerWeek: template.maxSessionsPerWeek,
+                                        maxSessionsPerMonth: template.maxSessionsPerMonth,
+                                        minCompletionRate: template.minCompletionRate ? Number(template.minCompletionRate) : null,
+                                        maxCancellationRate: template.maxCancellationRate ? Number(template.maxCancellationRate) : null,
+                                        minAccountAge: template.minAccountAge,
+                                        lastActiveWithinDays: template.lastActiveWithinDays,
+                                        requireVerified: template.requireVerified,
+                                        requirePrime: template.requirePrime,
+                                      })
+                                    }
+                                  }}
+                                >
+                                  {createSelectedCriteriaTemplateId === template.id ? (
+                                    <CheckIcon className="h-4 w-4" />
+                                  ) : (
+                                    <PlusIcon className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="manual" className="mt-4">
+                  <CampaignCriteriaConfig
+                    criteria={createCriteria}
+                    onUpdateCriteria={(updates) => setCreateCriteria({ ...createCriteria, ...updates })}
+                  />
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
+
+          {/* Step 4: Procedure Selection or Creation */}
+          {createStep === 4 && (
+            <div className="grid gap-5 py-4 max-h-[400px] overflow-y-auto">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-medium">Procedure de test</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Choisissez un template existant ou ignorez cette etape
                   </p>
                 </div>
                 <Link href="/dashboard/procedures">
@@ -1025,7 +1243,7 @@ export default function CampaignsPage() {
                     size="sm"
                   >
                     <PlusIcon className="mr-2 h-4 w-4" />
-                    Créer une procédure
+                    Creer une procedure
                   </Button>
                 </Link>
               </div>
@@ -1037,10 +1255,10 @@ export default function CampaignsPage() {
                       <div className="flex flex-col items-center justify-center py-8 text-center bg-muted/50 rounded-md">
                         <ListChecksIcon className="h-8 w-8 text-muted-foreground mb-2" />
                         <p className="text-sm text-muted-foreground">
-                          Aucun template de procédure disponible
+                          Aucun template de procedure disponible
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Vous pouvez en créer dans la section Procédures
+                          Vous pouvez en creer dans la section Procedures
                         </p>
                       </div>
                     ) : (
@@ -1049,7 +1267,7 @@ export default function CampaignsPage() {
                           <TableHeader>
                             <TableRow>
                               <TableHead>Template</TableHead>
-                              <TableHead className="w-[80px]">Étapes</TableHead>
+                              <TableHead className="w-[80px]">Etapes</TableHead>
                               <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
                           </TableHeader>
@@ -1125,21 +1343,30 @@ export default function CampaignsPage() {
                   Suivant
                 </Button>
               </>
-            ) : (
+            ) : createStep === 3 ? (
               <>
                 <Button variant="outline" onClick={() => setCreateStep(2)}>
+                  Retour
+                </Button>
+                <Button onClick={() => setCreateStep(4)}>
+                  Suivant
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setCreateStep(3)}>
                   Retour
                 </Button>
                 <Button onClick={handleCreateSave} disabled={isCreating}>
                   {isCreating ? (
                     <>
                       <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      Création...
+                      Creation...
                     </>
                   ) : (
                     <>
                       <PlusIcon className="mr-2 h-4 w-4" />
-                      Créer la campagne
+                      Creer la campagne
                     </>
                   )}
                 </Button>
@@ -1165,7 +1392,7 @@ export default function CampaignsPage() {
               <div>
                 <DialogTitle className="text-xl">Modifier la campagne</DialogTitle>
                 <DialogDescription>
-                  {editStep === 1 ? 'Informations générales et produits' : editStep === 2 ? 'Configuration des distributions' : 'Gestion des procédures'}
+                  {editStep === 1 ? 'Informations generales et produits' : editStep === 2 ? 'Configuration des distributions' : editStep === 3 ? 'Criteres d\'eligibilite' : 'Gestion des procedures'}
                 </DialogDescription>
               </div>
             </div>
@@ -1187,7 +1414,7 @@ export default function CampaignsPage() {
                 Infos
               </span>
             </button>
-            <div className={`h-px w-6 ${editStep >= 2 ? 'bg-primary' : 'bg-muted'}`} />
+            <div className={`h-px w-4 ${editStep >= 2 ? 'bg-primary' : 'bg-muted'}`} />
             <button
               type="button"
               onClick={() => setEditStep(2)}
@@ -1202,7 +1429,7 @@ export default function CampaignsPage() {
                 Distribution
               </span>
             </button>
-            <div className={`h-px w-6 ${editStep >= 3 ? 'bg-primary' : 'bg-muted'}`} />
+            <div className={`h-px w-4 ${editStep >= 3 ? 'bg-primary' : 'bg-muted'}`} />
             <button
               type="button"
               onClick={() => setEditStep(3)}
@@ -1211,10 +1438,25 @@ export default function CampaignsPage() {
               <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
                 editStep >= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
               }`}>
-                3
+                {editStep > 3 ? <CheckIcon className="h-4 w-4" /> : '3'}
               </div>
               <span className={`text-sm hidden sm:inline ${editStep >= 3 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                Procédure
+                Criteres
+              </span>
+            </button>
+            <div className={`h-px w-4 ${editStep >= 4 ? 'bg-primary' : 'bg-muted'}`} />
+            <button
+              type="button"
+              onClick={() => setEditStep(4)}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            >
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
+                editStep >= 4 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+              }`}>
+                4
+              </div>
+              <span className={`text-sm hidden sm:inline ${editStep >= 4 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                Procedure
               </span>
             </button>
           </div>
@@ -1279,24 +1521,6 @@ export default function CampaignsPage() {
                     </div>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="edit-totalSlots" className="text-sm font-medium">
-                      Nombre de slots
-                    </Label>
-                    <Input
-                      id="edit-totalSlots"
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      placeholder="10"
-                      value={editForm.totalSlots}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/[^0-9]/g, '')
-                        setEditForm({ ...editForm, totalSlots: parseInt(value) || 0 })
-                      }}
-                      className="h-10"
-                    />
-                  </div>
-                  <div className="grid gap-2">
                     <Label className="text-sm font-medium">
                       Produits associés
                     </Label>
@@ -1312,7 +1536,6 @@ export default function CampaignsPage() {
                       <CampaignProductConfig
                         products={products}
                         selectedProduct={editProduct}
-                        totalSlots={editForm.totalSlots}
                         onSelectProduct={handleEditSelectProduct}
                         onUpdateProduct={handleEditUpdateProduct}
                         onRemoveProduct={handleEditRemoveProduct}
@@ -1325,42 +1548,54 @@ export default function CampaignsPage() {
               {/* Step 2: Distributions */}
               {editStep === 2 && (
                 <div className="grid gap-5 py-4">
-                  {/* Nombre total de produits - Sticky en haut */}
+                  {/* Validation quantity vs distributions - Sticky en haut */}
                   <Card className="border-primary/20 bg-primary/5 sticky top-0 z-10">
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <Label className="text-sm font-medium">Nombre total de produits</Label>
+                          <Label className="text-sm font-medium">
+                            {editProduct 
+                              ? `Produits: ${editProduct.quantity}` 
+                              : 'Aucun produit sélectionné'}
+                          </Label>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Modifiable depuis cette section
+                            Distributions créées: {editDistributions.length} ligne(s)
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={editForm.totalSlots}
-                            onChange={(e) => {
-                              const value = e.target.value.replace(/[^0-9]/g, '')
-                              setEditForm({ ...editForm, totalSlots: parseInt(value) || 0 })
-                            }}
-                            className="h-9 w-20 text-center font-bold text-lg"
-                          />
-                          <span className="text-sm text-muted-foreground">produits</span>
+                          {editProduct && (() => {
+                            const totalDistributed = editDistributions.reduce((sum, d) => sum + (d.maxUnits || 0), 0)
+                            return totalDistributed === editProduct.quantity ? (
+                              <Badge variant="default" className="bg-green-600">✓ Complet</Badge>
+                            ) : totalDistributed > editProduct.quantity ? (
+                              <Badge variant="destructive">
+                                Dépassement: +{totalDistributed - editProduct.quantity}
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+                                {editProduct.quantity - totalDistributed} manquant(s)
+                              </Badge>
+                            )
+                          })()}
                         </div>
                       </div>
                       
-                      {editDistributions.length > 0 && (() => {
+                      {editProduct && editDistributions.length > 0 && (() => {
                         const totalDistributed = editDistributions.reduce((sum, d) => sum + (d.maxUnits || 0), 0)
-                        const remaining = editForm.totalSlots - totalDistributed
+                        const remaining = editProduct.quantity - totalDistributed
                         return (
                           <div className="mt-3 pt-3 border-t flex justify-between text-sm">
                             <span className="text-muted-foreground">Produits distribués:</span>
                             <span className="font-medium">{totalDistributed}</span>
-                            <span className={`font-bold ${remaining < 0 ? 'text-destructive' : remaining === 0 ? 'text-green-600' : 'text-orange-500'}`}>
-                              Restants: {remaining}
-                            </span>
+                            {remaining < 0 ? (
+                              <span className="font-bold text-destructive">
+                                ⚠️ Dépassement de {Math.abs(remaining)} produit{Math.abs(remaining) > 1 ? 's' : ''}
+                              </span>
+                            ) : (
+                              <span className={`font-bold ${remaining === 0 ? 'text-green-600' : 'text-orange-500'}`}>
+                                Restants: {remaining}
+                              </span>
+                            )}
                           </div>
                         )
                       })()}
@@ -1380,7 +1615,7 @@ export default function CampaignsPage() {
                           setEditDistributions([...editDistributions, {
                             type: 'SPECIFIC_DATE',
                             specificDate: '',
-                            maxUnits: 5,
+                            maxUnits: 1,
                             isActive: true,
                           }])
                         }}
@@ -1463,8 +1698,121 @@ export default function CampaignsPage() {
                 </div>
               )}
 
-              {/* Step 3: Procedures */}
+              {/* Step 3: Criteria */}
               {editStep === 3 && (
+                <div className="grid gap-5 py-4 max-h-[400px] overflow-y-auto">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-medium">Criteres d'eligibilite</Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Choisissez un template ou configurez manuellement
+                      </p>
+                    </div>
+                    <Link href="/dashboard/criteria-templates">
+                      <Button type="button" variant="outline" size="sm">
+                        <PlusIcon className="mr-2 h-4 w-4" />
+                        Gerer les templates
+                      </Button>
+                    </Link>
+                  </div>
+
+                  <Tabs value={editCriteriaMode} onValueChange={(v) => setEditCriteriaMode(v as 'manual' | 'template')}>
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="template">Template</TabsTrigger>
+                      <TabsTrigger value="manual">Manuel</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="template" className="mt-4">
+                      {criteriaTemplates.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-8 text-center bg-muted/50 rounded-md">
+                          <FilterIcon className="h-8 w-8 text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground">
+                            Aucun template de criteres disponible
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="overflow-hidden rounded-lg border">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Template</TableHead>
+                                <TableHead className="w-[50px]"></TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {criteriaTemplates.map((template) => (
+                                <TableRow
+                                  key={template.id}
+                                  className={editSelectedCriteriaTemplateId === template.id ? 'bg-primary/5' : ''}
+                                >
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <FilterIcon className="h-4 w-4 text-muted-foreground" />
+                                      <span className="font-medium">{template.name}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button
+                                      type="button"
+                                      variant={editSelectedCriteriaTemplateId === template.id ? "default" : "ghost"}
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => {
+                                        if (editSelectedCriteriaTemplateId === template.id) {
+                                          setEditSelectedCriteriaTemplateId('')
+                                        } else {
+                                          setEditSelectedCriteriaTemplateId(template.id)
+                                          setEditCriteria({
+                                            minAge: template.minAge,
+                                            maxAge: template.maxAge,
+                                            minRating: template.minRating ? Number(template.minRating) : null,
+                                            maxRating: template.maxRating ? Number(template.maxRating) : null,
+                                            minCompletedSessions: template.minCompletedSessions,
+                                            requiredGender: template.requiredGender,
+                                            requiredCountries: template.requiredCountries,
+                                            requiredLocations: template.requiredLocations,
+                                            excludedLocations: template.excludedLocations,
+                                            requiredCategories: template.requiredCategories,
+                                            noActiveSessionWithSeller: template.noActiveSessionWithSeller,
+                                            maxSessionsPerWeek: template.maxSessionsPerWeek,
+                                            maxSessionsPerMonth: template.maxSessionsPerMonth,
+                                            minCompletionRate: template.minCompletionRate ? Number(template.minCompletionRate) : null,
+                                            maxCancellationRate: template.maxCancellationRate ? Number(template.maxCancellationRate) : null,
+                                            minAccountAge: template.minAccountAge,
+                                            lastActiveWithinDays: template.lastActiveWithinDays,
+                                            requireVerified: template.requireVerified,
+                                            requirePrime: template.requirePrime,
+                                          })
+                                        }
+                                      }}
+                                    >
+                                      {editSelectedCriteriaTemplateId === template.id ? (
+                                        <CheckIcon className="h-4 w-4" />
+                                      ) : (
+                                        <PlusIcon className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="manual" className="mt-4">
+                      <CampaignCriteriaConfig
+                        criteria={editCriteria}
+                        onUpdateCriteria={(updates) => setEditCriteria({ ...editCriteria, ...updates })}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              )}
+
+              {/* Step 4: Procedures */}
+              {editStep === 4 && (
                 <div className="grid gap-5 py-4 max-h-[400px] overflow-y-auto">
                   <div className="flex items-center justify-end mb-2">
                     <Link href="/dashboard/procedures">
@@ -1474,7 +1822,7 @@ export default function CampaignsPage() {
                         size="sm"
                       >
                         <PlusIcon className="mr-2 h-4 w-4" />
-                        Créer une procédure
+                        Creer une procedure
                       </Button>
                     </Link>
                   </div>
@@ -1488,17 +1836,17 @@ export default function CampaignsPage() {
                     <TabsContent value="existing" className="mt-4">
                       <div className="grid gap-4">
                         <p className="text-xs text-muted-foreground">
-                          Procédures actuellement associées à cette campagne
+                          Procedures actuellement associees a cette campagne
                         </p>
 
                         {editProcedures.length === 0 ? (
                           <div className="flex flex-col items-center justify-center py-8 text-center bg-muted/50 rounded-md">
                             <ListChecksIcon className="h-8 w-8 text-muted-foreground mb-2" />
                             <p className="text-sm text-muted-foreground">
-                              Aucune procédure associée
+                              Aucune procedure associee
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Utilisez un template ou créez une nouvelle procédure
+                              Utilisez un template ou creez une nouvelle procedure
                             </p>
                           </div>
                         ) : (
@@ -1537,7 +1885,7 @@ export default function CampaignsPage() {
                     <TabsContent value="template" className="mt-4">
                       <div className="grid gap-4">
                         <p className="text-xs text-muted-foreground">
-                          Remplacer les procédures existantes par un template
+                          Remplacer les procedures existantes par un template
                         </p>
 
                         {procedureTemplates.length === 0 ? (
@@ -1553,7 +1901,7 @@ export default function CampaignsPage() {
                               <TableHeader>
                                 <TableRow>
                                   <TableHead>Template</TableHead>
-                                  <TableHead className="w-[80px]">Étapes</TableHead>
+                                  <TableHead className="w-[80px]">Etapes</TableHead>
                                   <TableHead className="w-[50px]"></TableHead>
                                 </TableRow>
                               </TableHeader>
@@ -1624,9 +1972,18 @@ export default function CampaignsPage() {
                   Suivant
                 </Button>
               </>
-            ) : (
+            ) : editStep === 3 ? (
               <>
                 <Button variant="outline" onClick={() => setEditStep(2)}>
+                  Retour
+                </Button>
+                <Button onClick={() => setEditStep(4)}>
+                  Suivant
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setEditStep(3)}>
                   Retour
                 </Button>
                 <Button onClick={handleEditSave} disabled={isSaving || isLoadingEditData}>
@@ -1774,13 +2131,140 @@ export default function CampaignsPage() {
                     </Table>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Aucune distribution configurée</p>
+                  <p className="text-sm text-muted-foreground">Aucune distribution configuree</p>
                 )}
               </div>
 
+              {/* Criteria */}
+              {viewingCampaign?.criteria && (
+                <div className="grid gap-3">
+                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                    <FilterIcon className="h-4 w-4" />
+                    Criteres d'eligibilite
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    {viewingCampaign.criteria.minAge && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Age min:</span>
+                        <span className="font-medium">{viewingCampaign.criteria.minAge} ans</span>
+                      </div>
+                    )}
+                    {viewingCampaign.criteria.maxAge && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Age max:</span>
+                        <span className="font-medium">{viewingCampaign.criteria.maxAge} ans</span>
+                      </div>
+                    )}
+                    {viewingCampaign.criteria.minRating && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Note min:</span>
+                        <span className="font-medium">{viewingCampaign.criteria.minRating}/5</span>
+                      </div>
+                    )}
+                    {viewingCampaign.criteria.maxRating && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Note max:</span>
+                        <span className="font-medium">{viewingCampaign.criteria.maxRating}/5</span>
+                      </div>
+                    )}
+                    {viewingCampaign.criteria.minCompletedSessions && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Tests min:</span>
+                        <span className="font-medium">{viewingCampaign.criteria.minCompletedSessions}</span>
+                      </div>
+                    )}
+                    {viewingCampaign.criteria.requiredGender && viewingCampaign.criteria.requiredGender !== 'ALL' && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Genre:</span>
+                        <span className="font-medium">{viewingCampaign.criteria.requiredGender === 'M' ? 'Homme' : 'Femme'}</span>
+                      </div>
+                    )}
+                    {viewingCampaign.criteria.minAccountAge && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Anciennete:</span>
+                        <span className="font-medium">{viewingCampaign.criteria.minAccountAge} jours</span>
+                      </div>
+                    )}
+                    {viewingCampaign.criteria.minCompletionRate && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Taux completion:</span>
+                        <span className="font-medium">{viewingCampaign.criteria.minCompletionRate}%</span>
+                      </div>
+                    )}
+                    {viewingCampaign.criteria.maxCancellationRate && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Taux annulation max:</span>
+                        <span className="font-medium">{viewingCampaign.criteria.maxCancellationRate}%</span>
+                      </div>
+                    )}
+                    {viewingCampaign.criteria.lastActiveWithinDays && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Actif dans:</span>
+                        <span className="font-medium">{viewingCampaign.criteria.lastActiveWithinDays} jours</span>
+                      </div>
+                    )}
+                    {viewingCampaign.criteria.maxSessionsPerWeek && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Max/semaine:</span>
+                        <span className="font-medium">{viewingCampaign.criteria.maxSessionsPerWeek}</span>
+                      </div>
+                    )}
+                    {viewingCampaign.criteria.maxSessionsPerMonth && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Max/mois:</span>
+                        <span className="font-medium">{viewingCampaign.criteria.maxSessionsPerMonth}</span>
+                      </div>
+                    )}
+                  </div>
+                  {(viewingCampaign.criteria.requireVerified || viewingCampaign.criteria.requirePrime || viewingCampaign.criteria.noActiveSessionWithSeller) && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {viewingCampaign.criteria.requireVerified && (
+                        <Badge variant="secondary">Compte verifie</Badge>
+                      )}
+                      {viewingCampaign.criteria.requirePrime && (
+                        <Badge variant="secondary">Premium</Badge>
+                      )}
+                      {viewingCampaign.criteria.noActiveSessionWithSeller && (
+                        <Badge variant="secondary">Pas de session active</Badge>
+                      )}
+                    </div>
+                  )}
+                  {viewingCampaign.criteria.requiredCountries && viewingCampaign.criteria.requiredCountries.length > 0 && (
+                    <div className="mt-2">
+                      <span className="text-xs text-muted-foreground">Pays acceptes:</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {viewingCampaign.criteria.requiredCountries.map((country, i) => (
+                          <Badge key={i} variant="outline" className="text-xs">{country}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {viewingCampaign.criteria.requiredLocations && viewingCampaign.criteria.requiredLocations.length > 0 && (
+                    <div className="mt-2">
+                      <span className="text-xs text-muted-foreground">Localisations acceptees:</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {viewingCampaign.criteria.requiredLocations.map((loc, i) => (
+                          <Badge key={i} variant="outline" className="text-xs">{loc}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {viewingCampaign.criteria.excludedLocations && viewingCampaign.criteria.excludedLocations.length > 0 && (
+                    <div className="mt-2">
+                      <span className="text-xs text-muted-foreground">Localisations exclues:</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {viewingCampaign.criteria.excludedLocations.map((loc, i) => (
+                          <Badge key={i} variant="destructive" className="text-xs">{loc}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Procedures */}
               <div className="grid gap-3">
-                <h4 className="text-sm font-semibold">Procédures ({detailsProcedures.length})</h4>
+                <h4 className="text-sm font-semibold">Procedures ({detailsProcedures.length})</h4>
                 {detailsProcedures.length > 0 ? (
                   <div className="overflow-hidden rounded-lg border">
                     <Table>
