@@ -170,6 +170,22 @@ export interface DashboardStats {
   balance: number
 }
 
+// PRO Overview interfaces
+export interface SpendingChartData {
+  date: string
+  amount: number
+  campaignCount: number
+}
+
+export interface ProOverviewStats {
+  totalProducts: number
+  totalCampaigns: number
+  testsInProgress: number
+  testsDone: number
+  totalSpent: number
+  spendingChart: SpendingChartData[]
+}
+
 // Procedure interfaces
 export interface Procedure {
   id: string
@@ -787,6 +803,11 @@ class ApiClient {
       totalProducts: products.length,
       balance
     }
+  }
+
+  // Get PRO overview with spending chart
+  async getProOverview(): Promise<ProOverviewStats> {
+    return this.request<ProOverviewStats>('/users/me/overview')
   }
 
   // Procedures endpoints

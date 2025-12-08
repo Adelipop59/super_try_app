@@ -28,6 +28,13 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@/components/ui/toggle-group"
+import { SpendingChartData } from "@/lib/api"
+
+interface ChartAreaInteractiveProps {
+  spendingData?: SpendingChartData[]
+  userRole?: 'USER' | 'PRO' | 'ADMIN'
+  loading?: boolean
+}
 const chartData = [
   { date: "2024-04-01", desktop: 222, mobile: 150 },
   { date: "2024-04-02", desktop: 97, mobile: 180 },
@@ -134,9 +141,13 @@ const chartConfig = {
     label: "Mobile",
     color: "var(--chart-2)",
   },
+  spending: {
+    label: "Dépenses",
+    color: "var(--chart-1)",
+  },
 } satisfies ChartConfig
 
-export function ChartAreaInteractive() {
+export function ChartAreaInteractive({ spendingData, userRole = 'USER', loading = false }: ChartAreaInteractiveProps) {
   const isMobile = useIsMobile()
   const [timeRange, setTimeRange] = React.useState("30d")
 
@@ -146,29 +157,56 @@ export function ChartAreaInteractive() {
     }
   }, [isMobile])
 
-  const filteredData = chartData.filter((item) => {
+  // Use real spending data for PRO users, otherwise fallback to mock data
+  const dataSource = (userRole === 'PRO' || userRole === 'ADMIN') && spendingData
+    ? spendingData.map(item => ({
+        date: item.date,
+        spending: item.amount / 100, // Convert cents to euros
+        campaignCount: item.campaignCount
+      }))
+    : chartData
+
+  const filteredData = dataSource.filter((item) => {
     const date = new Date(item.date)
-    const referenceDate = new Date("2024-06-30")
+    const now = new Date()
     let daysToSubtract = 90
     if (timeRange === "30d") {
       daysToSubtract = 30
     } else if (timeRange === "7d") {
       daysToSubtract = 7
     }
-    const startDate = new Date(referenceDate)
+    const startDate = new Date(now)
     startDate.setDate(startDate.getDate() - daysToSubtract)
     return date >= startDate
   })
 
+  if (loading) {
+    return (
+      <Card className="@container/card">
+        <CardHeader className="relative">
+          <div className="h-6 w-40 bg-muted animate-pulse rounded" />
+          <div className="h-4 w-60 bg-muted animate-pulse rounded mt-2" />
+        </CardHeader>
+        <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
+          <div className="aspect-auto h-[250px] w-full bg-muted animate-pulse rounded" />
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const isPro = userRole === 'PRO' || userRole === 'ADMIN'
+  const title = isPro ? "Dépenses des campagnes" : "Total Visitors"
+  const description = isPro ? "Évolution des dépenses sur les 30 derniers jours" : "Total for the last 3 months"
+
   return (
     <Card className="@container/card">
       <CardHeader className="relative">
-        <CardTitle>Total Visitors</CardTitle>
+        <CardTitle>{title}</CardTitle>
         <CardDescription>
           <span className="@[540px]/card:block hidden">
-            Total for the last 3 months
+            {description}
           </span>
-          <span className="@[540px]/card:hidden">Last 3 months</span>
+          <span className="@[540px]/card:hidden">{isPro ? "30 derniers jours" : "Last 3 months"}</span>
         </CardDescription>
         <div className="absolute right-4 top-4">
           <ToggleGroup
@@ -261,29 +299,46 @@ export function ChartAreaInteractive() {
               content={
                 <ChartTooltipContent
                   labelFormatter={(value) => {
-                    return new Date(value).toLocaleDateString("en-US", {
+                    return new Date(value).toLocaleDateString("fr-FR", {
                       month: "short",
                       day: "numeric",
                     })
+                  }}
+                  formatter={(value, name) => {
+                    if (isPro && name === 'spending') {
+                      return `${Number(value).toFixed(2)} €`
+                    }
+                    return value
                   }}
                   indicator="dot"
                 />
               }
             />
-            <Area
-              dataKey="mobile"
-              type="natural"
-              fill="url(#fillMobile)"
-              stroke="var(--color-mobile)"
-              stackId="a"
-            />
-            <Area
-              dataKey="desktop"
-              type="natural"
-              fill="url(#fillDesktop)"
-              stroke="var(--color-desktop)"
-              stackId="a"
-            />
+            {isPro ? (
+              <Area
+                dataKey="spending"
+                type="natural"
+                fill="url(#fillDesktop)"
+                stroke="var(--color-desktop)"
+              />
+            ) : (
+              <>
+                <Area
+                  dataKey="mobile"
+                  type="natural"
+                  fill="url(#fillMobile)"
+                  stroke="var(--color-mobile)"
+                  stackId="a"
+                />
+                <Area
+                  dataKey="desktop"
+                  type="natural"
+                  fill="url(#fillDesktop)"
+                  stroke="var(--color-desktop)"
+                  stackId="a"
+                />
+              </>
+            )}
           </AreaChart>
         </ChartContainer>
       </CardContent>

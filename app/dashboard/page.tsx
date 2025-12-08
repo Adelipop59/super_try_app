@@ -9,13 +9,14 @@ import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/auth-context"
-import { api, DashboardStats } from "@/lib/api"
+import { api, DashboardStats, ProOverviewStats, SpendingChartData } from "@/lib/api"
 
 import data from "@/lib/data/mock-data.json"
 
 export default function Page() {
   const { user } = useAuth()
   const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [proOverview, setProOverview] = useState<ProOverviewStats | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -24,15 +25,30 @@ export default function Page() {
 
       try {
         setLoading(true)
-        let dashboardStats: DashboardStats
 
         if (user.role === 'PRO' || user.role === 'ADMIN') {
-          dashboardStats = await api.getProDashboardStats()
-        } else {
-          dashboardStats = await api.getDashboardStats()
-        }
+          // Fetch PRO overview with spending chart
+          const overview = await api.getProOverview()
+          setProOverview(overview)
 
-        setStats(dashboardStats)
+          // Also fetch wallet balance for PRO users
+          const walletBalance = await api.getWalletBalance().catch(() => ({ balance: 0, currency: 'EUR' }))
+
+          // Convert to DashboardStats format for SectionCards compatibility
+          setStats({
+            totalSessions: overview.testsInProgress + overview.testsDone,
+            activeSessions: overview.testsInProgress,
+            completedSessions: overview.testsDone,
+            pendingSessions: 0,
+            totalCampaigns: overview.totalCampaigns,
+            activeCampaigns: undefined,
+            totalProducts: overview.totalProducts,
+            balance: walletBalance.balance
+          })
+        } else {
+          const dashboardStats = await api.getDashboardStats()
+          setStats(dashboardStats)
+        }
       } catch (error) {
         console.error('Failed to fetch dashboard stats:', error)
         // Set default stats on error
@@ -64,9 +80,14 @@ export default function Page() {
                   stats={stats}
                   userRole={user?.role}
                   loading={loading}
+                  proOverview={proOverview}
                 />
                 <div className="px-4 lg:px-6">
-                  <ChartAreaInteractive />
+                  <ChartAreaInteractive
+                    spendingData={proOverview?.spendingChart}
+                    userRole={user?.role}
+                    loading={loading}
+                  />
                 </div>
                 <DataTable data={data} />
               </div>

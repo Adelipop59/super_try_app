@@ -1,6 +1,6 @@
 "use client"
 
-import { TrendingUpIcon, WalletIcon, PackageIcon, TestTubeIcon, CheckCircleIcon } from "lucide-react"
+import { TrendingUpIcon, WalletIcon, PackageIcon, TestTubeIcon, CheckCircleIcon, CreditCardIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import {
@@ -10,15 +10,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { DashboardStats } from "@/lib/api"
+import { DashboardStats, ProOverviewStats } from "@/lib/api"
 
 interface SectionCardsProps {
   stats: DashboardStats | null
   userRole?: 'USER' | 'PRO' | 'ADMIN'
   loading?: boolean
+  proOverview?: ProOverviewStats | null
 }
 
-export function SectionCards({ stats, userRole = 'USER', loading = false }: SectionCardsProps) {
+export function SectionCards({ stats, userRole = 'USER', loading = false, proOverview = null }: SectionCardsProps) {
   if (loading) {
     return (
       <div className="*:data-[slot=card]:shadow-xs @xl/main:grid-cols-2 @5xl/main:grid-cols-4 grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card lg:px-6">
@@ -44,20 +45,20 @@ export function SectionCards({ stats, userRole = 'USER', loading = false }: Sect
       <div className="*:data-[slot=card]:shadow-xs @xl/main:grid-cols-2 @5xl/main:grid-cols-4 grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card lg:px-6">
         <Card className="@container/card">
           <CardHeader className="relative">
-            <CardDescription>Solde</CardDescription>
+            <CardDescription>Total dépensé</CardDescription>
             <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-              {stats?.balance?.toFixed(2) || '0.00'} €
+              {proOverview ? (proOverview.totalSpent / 100).toFixed(2) : '0.00'} €
             </CardTitle>
             <div className="absolute right-4 top-4">
-              <WalletIcon className="size-5 text-muted-foreground" />
+              <CreditCardIcon className="size-5 text-muted-foreground" />
             </div>
           </CardHeader>
           <CardFooter className="flex-col items-start gap-1 text-sm">
             <div className="line-clamp-1 flex gap-2 font-medium">
-              Votre portefeuille
+              Dépenses campagnes
             </div>
             <div className="text-muted-foreground">
-              Disponible pour retrait
+              Total investi
             </div>
           </CardFooter>
         </Card>
@@ -103,13 +104,13 @@ export function SectionCards({ stats, userRole = 'USER', loading = false }: Sect
         </Card>
         <Card className="@container/card">
           <CardHeader className="relative">
-            <CardDescription>Sessions</CardDescription>
+            <CardDescription>Tests</CardDescription>
             <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-              {stats?.totalSessions || 0}
+              {proOverview ? proOverview.testsInProgress + proOverview.testsDone : 0}
             </CardTitle>
             <div className="absolute right-4 top-4">
               <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
-                {stats?.completedSessions || 0} terminées
+                {proOverview?.testsDone || 0} terminés
               </Badge>
             </div>
           </CardHeader>
@@ -118,7 +119,7 @@ export function SectionCards({ stats, userRole = 'USER', loading = false }: Sect
               Sessions de test
             </div>
             <div className="text-muted-foreground">
-              {stats?.activeSessions || 0} en cours, {stats?.pendingSessions || 0} en attente
+              {proOverview?.testsInProgress || 0} en cours
             </div>
           </CardFooter>
         </Card>
