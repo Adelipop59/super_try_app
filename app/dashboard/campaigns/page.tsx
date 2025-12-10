@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
@@ -78,7 +78,7 @@ const getStatusBadge = (status: string) => {
   }
 }
 
-export default function CampaignsPage() {
+function CampaignsPageContent() {
   const { user } = useAuth()
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -87,6 +87,14 @@ export default function CampaignsPage() {
   const [procedureTemplates, setProcedureTemplates] = useState<ProcedureTemplate[]>([])
   const [criteriaTemplates, setCriteriaTemplates] = useState<CriteriaTemplate[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Cache for campaign distributions and procedures to avoid refetching
+  const [campaignDataCache, setCampaignDataCache] = useState<Record<string, {
+    distributions: Distribution[]
+    procedures: Procedure[]
+    criteria?: CampaignCriteria | null
+  }>>({})
+
 
   // Edit state
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null)
@@ -309,14 +317,14 @@ export default function CampaignsPage() {
     setEditStep(1)
     setIsEditSheetOpen(true)
 
-    // Load distributions, procedures, and criteria
-    setIsLoadingEditData(true)
-    try {
-      const [distributionsData, proceduresData, criteriaData] = await Promise.all([
-        api.getDistributions(campaign.id),
-        api.getProcedures(campaign.id),
-        api.getCampaignCriteria(campaign.id)
-      ])
+    // Check if data is already cached
+    const cachedData = campaignDataCache[campaign.id]
+
+    if (cachedData) {
+      // Use cached data - no API calls needed!
+      const distributionsData = cachedData.distributions
+      const proceduresData = cachedData.procedures
+      const criteriaData = cachedData.criteria
 
       setEditDistributions(distributionsData.map(d => ({
         id: d.id,
@@ -364,34 +372,122 @@ export default function CampaignsPage() {
         setEditCriteriaMode('manual')
       }
       setEditSelectedCriteriaTemplateId('')
-    } catch (error) {
-      console.error('Failed to load campaign data:', error)
-      setEditDistributions([])
-      setEditProcedures([])
-    } finally {
-      setIsLoadingEditData(false)
+    } else {
+      // Data not cached - fetch from API
+      setIsLoadingEditData(true)
+      try {
+        const [distributionsData, proceduresData, criteriaData] = await Promise.all([
+          api.getDistributions(campaign.id),
+          api.getProcedures(campaign.id),
+          api.getCampaignCriteria(campaign.id)
+        ])
+
+        // Cache the data for future use
+        setCampaignDataCache(prev => ({
+          ...prev,
+          [campaign.id]: {
+            distributions: distributionsData,
+            procedures: proceduresData,
+            criteria: criteriaData
+          }
+        }))
+
+        setEditDistributions(distributionsData.map(d => ({
+          id: d.id,
+          type: d.type,
+          dayOfWeek: d.dayOfWeek ?? undefined,
+          specificDate: d.specificDate ? d.specificDate.split('T')[0] : undefined,
+          maxUnits: d.maxUnits,
+          isActive: d.isActive
+        })))
+
+        setEditProcedures(proceduresData)
+        setEditProcedureMode('existing')
+        setEditSelectedTemplateId('')
+        setEditInlineProcedure({ title: '', description: '' })
+        setEditInlineSteps([])
+
+        // Load existing criteria if any
+        if (criteriaData) {
+          setEditCriteria({
+            minAge: criteriaData.minAge,
+            maxAge: criteriaData.maxAge,
+            minRating: criteriaData.minRating ? Number(criteriaData.minRating) : null,
+            maxRating: criteriaData.maxRating ? Number(criteriaData.maxRating) : null,
+            minCompletedSessions: criteriaData.minCompletedSessions,
+            requiredGender: criteriaData.requiredGender,
+            requiredCountries: criteriaData.requiredCountries || [],
+            requiredLocations: criteriaData.requiredLocations || [],
+            excludedLocations: criteriaData.excludedLocations || [],
+            requiredCategories: criteriaData.requiredCategories || [],
+            noActiveSessionWithSeller: criteriaData.noActiveSessionWithSeller,
+            maxSessionsPerWeek: criteriaData.maxSessionsPerWeek,
+            maxSessionsPerMonth: criteriaData.maxSessionsPerMonth,
+            minCompletionRate: criteriaData.minCompletionRate ? Number(criteriaData.minCompletionRate) : null,
+            maxCancellationRate: criteriaData.maxCancellationRate ? Number(criteriaData.maxCancellationRate) : null,
+            minAccountAge: criteriaData.minAccountAge,
+            lastActiveWithinDays: criteriaData.lastActiveWithinDays,
+            requireVerified: criteriaData.requireVerified,
+            requirePrime: criteriaData.requirePrime,
+          })
+          setEditHasExistingCriteria(true)
+          setEditCriteriaMode('manual')
+        } else {
+          setEditCriteria({})
+          setEditHasExistingCriteria(false)
+          setEditCriteriaMode('manual')
+        }
+        setEditSelectedCriteriaTemplateId('')
+      } catch (error) {
+        console.error('Failed to load campaign data:', error)
+        setEditDistributions([])
+        setEditProcedures([])
+      } finally {
+        setIsLoadingEditData(false)
+      }
     }
   }
 
   const handleViewDetails = async (campaign: Campaign) => {
     setViewingCampaign(campaign)
     setIsDetailsDialogOpen(true)
-    setIsLoadingDetails(true)
 
-    try {
-      const [distributionsData, proceduresData] = await Promise.all([
-        api.getDistributions(campaign.id),
-        api.getProcedures(campaign.id)
-      ])
+    // Check if data is already cached
+    const cachedData = campaignDataCache[campaign.id]
 
-      setDetailsDistributions(distributionsData)
-      setDetailsProcedures(proceduresData)
-    } catch (error) {
-      console.error('Failed to load campaign details:', error)
-      setDetailsDistributions([])
-      setDetailsProcedures([])
-    } finally {
+    if (cachedData) {
+      // Use cached data - instant display!
+      setDetailsDistributions(cachedData.distributions)
+      setDetailsProcedures(cachedData.procedures)
       setIsLoadingDetails(false)
+    } else {
+      // Fetch and cache
+      setIsLoadingDetails(true)
+      try {
+        const [distributionsData, proceduresData] = await Promise.all([
+          api.getDistributions(campaign.id),
+          api.getProcedures(campaign.id)
+        ])
+
+        // Cache for future use
+        setCampaignDataCache(prev => ({
+          ...prev,
+          [campaign.id]: {
+            distributions: distributionsData,
+            procedures: proceduresData,
+            criteria: prev[campaign.id]?.criteria || null
+          }
+        }))
+
+        setDetailsDistributions(distributionsData)
+        setDetailsProcedures(proceduresData)
+      } catch (error) {
+        console.error('Failed to load campaign details:', error)
+        setDetailsDistributions([])
+        setDetailsProcedures([])
+      } finally {
+        setIsLoadingDetails(false)
+      }
     }
   }
 
@@ -401,6 +497,7 @@ export default function CampaignsPage() {
     if (product) {
       setEditProduct({
         productId,
+        quantity: 1,
         expectedPrice: product.price,
         shippingCost: product.shippingCost || 0,
         reimbursedPrice: true,
@@ -562,6 +659,14 @@ export default function CampaignsPage() {
       setIsEditSheetOpen(false)
       setEditingCampaign(null)
       setEditStep(1)
+
+      // Invalidate cache for this campaign since it was modified
+      setCampaignDataCache(prev => {
+        const updated = { ...prev }
+        delete updated[editingCampaign.id]
+        return updated
+      })
+
       fetchCampaigns()
     } catch (error) {
       console.error('Failed to update campaign:', error)
@@ -702,6 +807,14 @@ export default function CampaignsPage() {
 
       toast.success('Campagne supprimée avec succès')
       setIsDeleteDialogOpen(false)
+
+      // Remove from cache since it's deleted
+      setCampaignDataCache(prev => {
+        const updated = { ...prev }
+        delete updated[deletingCampaign.id]
+        return updated
+      })
+
       setDeletingCampaign(null)
       fetchCampaigns()
     } catch (error) {
@@ -2380,5 +2493,20 @@ export default function CampaignsPage() {
         onPaymentSuccess={handlePaymentSuccess}
       />
     </ProtectedRoute>
+  )
+}
+
+export default function CampaignsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4" />
+          <p className="text-muted-foreground">Chargement...</p>
+        </div>
+      </div>
+    }>
+      <CampaignsPageContent />
+    </Suspense>
   )
 }

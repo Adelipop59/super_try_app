@@ -139,6 +139,7 @@ export interface Product {
   name: string
   description?: string
   price: number
+  shippingCost?: number
   amazonUrl?: string
   imageUrl?: string
   isActive: boolean
@@ -727,6 +728,7 @@ class ApiClient {
     name: string
     description?: string
     price: number
+    shippingCost?: number
     amazonUrl?: string
     imageUrl?: string
   }): Promise<Product> {
