@@ -1,3 +1,5 @@
+import { NetworkError, logError, getErrorContext } from './error-handler'
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
 
 export interface SignUpData {
@@ -569,43 +571,65 @@ class ApiClient {
     options: RequestInit = {},
     retry: boolean = true
   ): Promise<T> {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string>),
-    }
-
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`
-    }
-
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      ...options,
-      headers,
-    })
-
-    // Si erreur 401 et qu'on a un refresh token, tenter de rafraîchir
-    if (response.status === 401 && retry && this.refreshToken) {
-      const refreshed = await this.tryRefreshToken()
-      if (refreshed) {
-        // Réessayer la requête avec le nouveau token
-        return this.request<T>(endpoint, options, false)
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(options.headers as Record<string, string>),
       }
-      // Si le refresh a échoué, propager l'erreur 401
-      throw new Error('Session expirée. Veuillez vous reconnecter.')
-    }
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({
-        message: response.statusText,
-      }))
-      throw new ApiError(
-        error.message || 'Une erreur est survenue',
-        error.errors,
-        error.statusCode || response.status
-      )
-    }
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`
+      }
 
-    return response.json()
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        ...options,
+        headers,
+      })
+
+      // Si erreur 401 et qu'on a un refresh token, tenter de rafraîchir
+      if (response.status === 401 && retry && this.refreshToken) {
+        const refreshed = await this.tryRefreshToken()
+        if (refreshed) {
+          // Réessayer la requête avec le nouveau token
+          return this.request<T>(endpoint, options, false)
+        }
+        // Si le refresh a échoué, propager l'erreur 401
+        const authError = new ApiError('Session expirée. Veuillez vous reconnecter.', undefined, 401)
+        logError(authError, `API: ${options.method || 'GET'} ${endpoint}`)
+        throw authError
+      }
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({
+          message: response.statusText,
+        }))
+        const apiError = new ApiError(
+          error.message || 'Une erreur est survenue',
+          error.errors,
+          error.statusCode || response.status
+        )
+        logError(apiError, `API: ${options.method || 'GET'} ${endpoint}`)
+        throw apiError
+      }
+
+      return response.json()
+    } catch (error) {
+      // If it's already an ApiError, rethrow it
+      if (error instanceof ApiError) {
+        throw error
+      }
+
+      // Handle network errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        const networkError = new NetworkError('Impossible de se connecter au serveur. Vérifiez votre connexion internet.')
+        logError(networkError, `API: ${options.method || 'GET'} ${endpoint}`)
+        throw networkError
+      }
+
+      // Handle other unknown errors
+      logError(error, `API: ${options.method || 'GET'} ${endpoint}`)
+      throw error
+    }
   }
 
   // Auth endpoints
