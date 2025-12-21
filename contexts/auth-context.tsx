@@ -51,7 +51,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       api.setToken(response.access_token)
       api.setRefreshToken(response.refresh_token)
       setUser(response.profile)
-      router.push('/dashboard')
+
+      // Redirect based on role
+      switch (response.profile.role) {
+        case 'ADMIN':
+          router.push('/dashboard/admin')
+          break
+        case 'USER':
+          router.push('/dashboard/user')
+          break
+        case 'PRO':
+        default:
+          router.push('/dashboard/pro')
+          break
+      }
     } catch (error) {
       throw error
     }
@@ -63,7 +76,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       api.setToken(response.access_token)
       api.setRefreshToken(response.refresh_token)
       setUser(response.profile)
-      router.push('/dashboard')
+
+      // Redirect based on role (signup only allows USER and PRO)
+      if (response.profile.role === 'USER') {
+        router.push('/dashboard/user')
+      } else {
+        router.push('/dashboard/pro')
+      }
     } catch (error) {
       throw error
     }

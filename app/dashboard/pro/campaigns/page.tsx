@@ -232,13 +232,13 @@ export default function CampaignsPage() {
       // Refresh campaigns to show updated status
       fetchData()
       // Remove query params from URL
-      router.replace('/dashboard/campaigns')
+      router.replace('/dashboard/pro/campaigns')
     } else if (payment === 'cancelled' && campaignId) {
       toast.info('Paiement annulé', {
         description: 'Le paiement a été annulé. Vous pouvez réessayer quand vous voulez.',
       })
       // Remove query params from URL
-      router.replace('/dashboard/campaigns')
+      router.replace('/dashboard/pro/campaigns')
     }
   }, [searchParams])
 
@@ -747,9 +747,9 @@ export default function CampaignsPage() {
                   <Card>
                     <CardContent className="flex flex-col items-center justify-center py-8 text-center">
                       <p className="text-muted-foreground mb-4">
-                        Vous n'avez pas encore de campagne
+                        Vous n&apos;avez pas encore de campagne
                       </p>
-                      <Button onClick={() => setIsCreateDialogOpen(true)}>
+                      <Button onClick={() => router.push('/dashboard/pro/campaigns/new')}>
                         <PlusIcon className="mr-2 h-4 w-4" />
                         Créer votre première campagne
                       </Button>
@@ -761,7 +761,7 @@ export default function CampaignsPage() {
                     onView={handleViewDetails}
                     onEdit={handleEditClick}
                     onDelete={handleDeleteClick}
-                    onAdd={() => setIsCreateDialogOpen(true)}
+                    onAdd={() => router.push('/dashboard/pro/campaigns/new')}
                     onPayment={handlePaymentClick}
                   />
                 )}

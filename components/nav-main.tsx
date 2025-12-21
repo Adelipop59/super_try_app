@@ -27,8 +27,14 @@ export function NavMain({
       <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
           {items.map((item) => {
-            const isActive = pathname === item.url ||
-              (item.url !== '/dashboard' && pathname.startsWith(item.url))
+            // URLs de dashboard de base : correspondance exacte uniquement
+            const isDashboardBase = item.url === '/dashboard/pro' || 
+              item.url === '/dashboard/user' || 
+              item.url === '/dashboard/admin'
+            
+            const isActive = isDashboardBase
+              ? pathname === item.url
+              : pathname === item.url || pathname.startsWith(item.url + '/')
 
             return (
               <SidebarMenuItem key={item.title}>

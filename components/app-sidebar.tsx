@@ -3,6 +3,7 @@
 import * as React from "react"
 import {
   ArrowUpCircleIcon,
+  BarChartIcon,
   CreditCardIcon,
   FilterIcon,
   HelpCircleIcon,
@@ -12,6 +13,7 @@ import {
   PackageIcon,
   SettingsIcon,
   TestTubeIcon,
+  UsersIcon,
   WalletIcon,
 } from "lucide-react"
 
@@ -33,32 +35,32 @@ import { useAuth } from "@/contexts/auth-context"
 const proNavMain = [
   {
     title: "Overview",
-    url: "/dashboard",
+    url: "/dashboard/pro",
     icon: LayoutDashboardIcon,
   },
   {
     title: "Campaigns",
-    url: "/dashboard/campaigns",
+    url: "/dashboard/pro/campaigns",
     icon: MegaphoneIcon,
   },
   {
     title: "Procedures",
-    url: "/dashboard/procedures",
+    url: "/dashboard/pro/procedures",
     icon: ListChecksIcon,
   },
   {
     title: "Criteres",
-    url: "/dashboard/criteria-templates",
+    url: "/dashboard/pro/criteria-templates",
     icon: FilterIcon,
   },
   {
     title: "Products",
-    url: "/dashboard/products",
+    url: "/dashboard/pro/products",
     icon: PackageIcon,
   },
   {
     title: "Mes paiements",
-    url: "/dashboard/payments",
+    url: "/dashboard/pro/payments",
     icon: CreditCardIcon,
   },
 ]
@@ -67,33 +69,66 @@ const proNavMain = [
 const userNavMain = [
   {
     title: "Overview",
-    url: "/dashboard",
+    url: "/dashboard/user",
     icon: LayoutDashboardIcon,
   },
   {
     title: "Sessions",
-    url: "/dashboard/sessions",
+    url: "/dashboard/user/sessions",
     icon: TestTubeIcon,
   },
   {
     title: "Wallet",
-    url: "/dashboard/wallet",
+    url: "/dashboard/user/wallet",
     icon: WalletIcon,
   },
 ]
 
-const navSecondary = [
+// Navigation pour les administrateurs
+const adminNavMain = [
   {
-    title: "Settings",
-    url: "/dashboard/settings",
-    icon: SettingsIcon,
+    title: "Overview",
+    url: "/dashboard/admin",
+    icon: LayoutDashboardIcon,
   },
   {
-    title: "Get Help",
-    url: "/help",
-    icon: HelpCircleIcon,
+    title: "Utilisateurs",
+    url: "/dashboard/admin/users",
+    icon: UsersIcon,
+  },
+  {
+    title: "Campagnes",
+    url: "/dashboard/admin/campaigns",
+    icon: MegaphoneIcon,
+  },
+  {
+    title: "Statistiques",
+    url: "/dashboard/admin/analytics",
+    icon: BarChartIcon,
   },
 ]
+
+// Secondary navigation based on role
+const getNavSecondary = (role?: string) => {
+  const settingsUrl = role === 'ADMIN'
+    ? '/dashboard/admin/settings'
+    : role === 'USER'
+    ? '/dashboard/user/settings'
+    : '/dashboard/pro/settings'
+
+  return [
+    {
+      title: "Settings",
+      url: settingsUrl,
+      icon: SettingsIcon,
+    },
+    {
+      title: "Get Help",
+      url: "/help",
+      icon: HelpCircleIcon,
+    },
+  ]
+}
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuth()
@@ -107,12 +142,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }
 
   // Sélectionner la navigation en fonction du rôle
-  const navItems = user?.role === 'PRO' || user?.role === 'ADMIN'
-    ? proNavMain
-    : userNavMain
+  const navItems = user?.role === 'ADMIN'
+    ? adminNavMain
+    : user?.role === 'USER'
+    ? userNavMain
+    : proNavMain
+
+  // Get dashboard URL based on role
+  const dashboardUrl = user?.role === 'ADMIN'
+    ? '/dashboard/admin'
+    : user?.role === 'USER'
+    ? '/dashboard/user'
+    : '/dashboard/pro'
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -120,7 +164,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
-              <a href="/dashboard">
+              <a href={dashboardUrl}>
                 <ArrowUpCircleIcon className="h-5 w-5" />
                 <span className="text-base font-semibold">SuperTry</span>
               </a>
@@ -130,7 +174,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navItems} />
-        <NavSecondary items={navSecondary} className="mt-auto" />
+        <NavSecondary items={getNavSecondary(user?.role)} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={userData} />

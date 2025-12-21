@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -58,7 +59,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Campaign } from "@/lib/api"
+import { Campaign, Distribution, Procedure, api } from "@/lib/api"
+import { CampaignExpandableCard } from "@/components/campaign-expandable-card"
 
 interface CampaignsDataTableProps {
   data: Campaign[]
@@ -89,6 +91,7 @@ const getStatusBadge = (status: string) => {
 }
 
 export function CampaignsDataTable({ data, onView, onEdit, onDelete, onAdd, onPayment }: CampaignsDataTableProps) {
+  const router = useRouter()
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -97,6 +100,43 @@ export function CampaignsDataTable({ data, onView, onEdit, onDelete, onAdd, onPa
     pageIndex: 0,
     pageSize: 10,
   })
+  const [activeCampaign, setActiveCampaign] = React.useState<Campaign | null>(null)
+  const [distributions, setDistributions] = React.useState<Distribution[]>([])
+  const [procedures, setProcedures] = React.useState<Procedure[]>([])
+
+  const openCampaignDetails = async (campaign: Campaign) => {
+    setActiveCampaign(campaign)
+
+    try {
+      const [distributionsData, proceduresData] = await Promise.all([
+        api.getDistributions(campaign.id),
+        api.getProcedures(campaign.id)
+      ])
+
+      setDistributions(distributionsData)
+      setProcedures(proceduresData)
+    } catch (error) {
+      console.error('Failed to load campaign details:', error)
+      setDistributions([])
+      setProcedures([])
+    }
+  }
+
+  const handleRowClick = async (campaign: Campaign, event: React.MouseEvent) => {
+    // Ne pas déclencher si on clique sur le menu d'actions ou la checkbox
+    const target = event.target as HTMLElement
+    if (target.closest('[role="menuitem"]') || target.closest('input[type="checkbox"]') || target.closest('button')) {
+      return
+    }
+
+    openCampaignDetails(campaign)
+  }
+
+  const handleCloseExpandable = () => {
+    setActiveCampaign(null)
+    setDistributions([])
+    setProcedures([])
+  }
 
   const columns: ColumnDef<Campaign>[] = [
     {
@@ -221,7 +261,10 @@ export function CampaignsDataTable({ data, onView, onEdit, onDelete, onAdd, onPa
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuItem onClick={() => onView(campaign)}>
+                <DropdownMenuItem onClick={(e) => {
+                  e.stopPropagation()
+                  openCampaignDetails(campaign)
+                }}>
                   <EyeIcon className="mr-2 h-4 w-4" />
                   Voir détails
                 </DropdownMenuItem>
@@ -313,7 +356,7 @@ export function CampaignsDataTable({ data, onView, onEdit, onDelete, onAdd, onPa
                 })}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="sm" onClick={onAdd}>
+          <Button variant="outline" size="sm" onClick={() => router.push('/dashboard/pro/campaigns/new')}>
             <PlusIcon />
             <span className="hidden lg:inline">Nouvelle campagne</span>
           </Button>
@@ -342,19 +385,23 @@ export function CampaignsDataTable({ data, onView, onEdit, onDelete, onAdd, onPa
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                  className="h-[72px]"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="align-top">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              table.getRowModel().rows.map((row) => {
+                const campaign = row.original
+                return (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                    className="h-[72px] cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={(e) => handleRowClick(campaign, e)}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className="align-top">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                )
+              })
             ) : (
               <TableRow>
                 <TableCell
@@ -446,6 +493,16 @@ export function CampaignsDataTable({ data, onView, onEdit, onDelete, onAdd, onPa
           </div>
         </div>
       </div>
+
+      {activeCampaign && (
+        <CampaignExpandableCard
+          campaign={activeCampaign}
+          distributions={distributions}
+          procedures={procedures}
+          onClose={handleCloseExpandable}
+          layoutId={`campaign-${activeCampaign.id}`}
+        />
+      )}
     </div>
   )
 }
