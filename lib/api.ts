@@ -39,6 +39,7 @@ export interface Profile {
   siret?: string
   isActive: boolean
   isVerified: boolean
+  verificationStatus?: 'unverified' | 'pending' | 'verified' | 'failed'
   createdAt: string
   updatedAt: string
 }
@@ -167,10 +168,16 @@ export interface DashboardStats {
   activeSessions: number
   completedSessions: number
   pendingSessions: number
+  balance: number
+  currency?: string
+  // PRO-specific fields (returned by unified endpoint)
   totalCampaigns?: number
   activeCampaigns?: number
   totalProducts?: number
-  balance: number
+  testsInProgress?: number
+  testsDone?: number
+  totalSpent?: number
+  spendingChart?: SpendingChartData[]
 }
 
 // PRO Overview interfaces
@@ -682,6 +689,17 @@ class ApiClient {
     })
   }
 
+  // Verification endpoints
+  async initiateVerification(): Promise<{ verification_url: string; session_id: string }> {
+    return this.request('/users/me/verify/initiate', {
+      method: 'POST',
+    })
+  }
+
+  async getVerificationStatus(): Promise<{ status: string; verified_at?: string; failure_reason?: string }> {
+    return this.request('/users/me/verify/status')
+  }
+
   // Dashboard endpoints
   async getSessions(): Promise<Session[]> {
     return this.request<Session[]>('/sessions')
@@ -786,49 +804,9 @@ class ApiClient {
     return this.request(`/wallets/me/transactions?limit=${limit}`)
   }
 
-  // Get dashboard stats based on user role
+  // Get unified dashboard stats (OPTIMIZED - single request)
   async getDashboardStats(): Promise<DashboardStats> {
-    const [sessionsRes, balanceRes] = await Promise.all([
-      this.getSessions().catch(() => []),
-      this.getWalletBalance().catch(() => ({ balance: 0, currency: 'EUR' }))
-    ])
-
-    const sessions = sessionsRes || []
-    const balance = balanceRes?.balance || 0
-
-    return {
-      totalSessions: sessions.length,
-      activeSessions: sessions.filter(s => ['ACCEPTED', 'PURCHASE_SUBMITTED', 'IN_PROGRESS'].includes(s.status)).length,
-      completedSessions: sessions.filter(s => s.status === 'COMPLETED').length,
-      pendingSessions: sessions.filter(s => s.status === 'PENDING').length,
-      balance
-    }
-  }
-
-  // Get PRO dashboard stats
-  async getProDashboardStats(): Promise<DashboardStats> {
-    const [sessionsRes, campaignsRes, productsRes, balanceRes] = await Promise.all([
-      this.getSessions().catch(() => []),
-      this.getMyCampaigns().catch(() => []),
-      this.getMyProducts().catch(() => []),
-      this.getWalletBalance().catch(() => ({ balance: 0, currency: 'EUR' }))
-    ])
-
-    const sessions = sessionsRes || []
-    const campaigns = campaignsRes || []
-    const products = productsRes || []
-    const balance = balanceRes?.balance || 0
-
-    return {
-      totalSessions: sessions.length,
-      activeSessions: sessions.filter(s => ['ACCEPTED', 'PURCHASE_SUBMITTED', 'IN_PROGRESS'].includes(s.status)).length,
-      completedSessions: sessions.filter(s => s.status === 'COMPLETED').length,
-      pendingSessions: sessions.filter(s => s.status === 'PENDING').length,
-      totalCampaigns: campaigns.length,
-      activeCampaigns: campaigns.filter(c => c.status === 'ACTIVE').length,
-      totalProducts: products.length,
-      balance
-    }
+    return this.request<DashboardStats>('/users/me/dashboard')
   }
 
   // Get PRO overview with spending chart

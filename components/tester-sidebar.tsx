@@ -3,15 +3,12 @@
 import * as React from "react"
 import {
   ArrowUpCircleIcon,
-  CreditCardIcon,
-  FilterIcon,
   HelpCircleIcon,
   LayoutDashboardIcon,
-  ListChecksIcon,
-  MegaphoneIcon,
-  PackageIcon,
   SettingsIcon,
   TestTubeIcon,
+  TrophyIcon,
+  UserIcon,
   WalletIcon,
 } from "lucide-react"
 
@@ -29,87 +26,59 @@ import {
 } from "@/components/ui/sidebar"
 import { useAuth } from "@/contexts/auth-context"
 
-// Navigation pour les utilisateurs PRO
-const proNavMain = [
+// Navigation principale pour les testeurs
+const testerNavMain = [
   {
-    title: "Overview",
-    url: "/dashboard/pro",
+    title: "Dashboard",
+    url: "/dashboard/tester",
     icon: LayoutDashboardIcon,
   },
   {
-    title: "Campaigns",
-    url: "/dashboard/pro/campaigns",
-    icon: MegaphoneIcon,
-  },
-  {
-    title: "Procedures",
-    url: "/dashboard/pro/procedures",
-    icon: ListChecksIcon,
-  },
-  {
-    title: "Criteres",
-    url: "/dashboard/pro/criteria-templates",
-    icon: FilterIcon,
-  },
-  {
-    title: "Products",
-    url: "/dashboard/pro/products",
-    icon: PackageIcon,
-  },
-  {
-    title: "Mes paiements",
-    url: "/dashboard/pro/payments",
-    icon: CreditCardIcon,
-  },
-]
-
-// Navigation pour les utilisateurs standard (testeurs)
-const userNavMain = [
-  {
-    title: "Overview",
-    url: "/dashboard",
-    icon: LayoutDashboardIcon,
-  },
-  {
-    title: "Sessions",
-    url: "/dashboard/sessions",
+    title: "Mes Sessions",
+    url: "/dashboard/tester/sessions",
     icon: TestTubeIcon,
   },
   {
-    title: "Wallet",
-    url: "/dashboard/wallet",
+    title: "Mes Gains",
+    url: "/dashboard/tester/earnings",
+    icon: TrophyIcon,
+  },
+  {
+    title: "Mon Wallet",
+    url: "/dashboard/tester/wallet",
     icon: WalletIcon,
+  },
+  {
+    title: "Mon Profil",
+    url: "/dashboard/tester/profile",
+    icon: UserIcon,
   },
 ]
 
-const navSecondary = [
+// Navigation secondaire
+const testerNavSecondary = [
   {
-    title: "Settings",
-    url: "/dashboard/pro/settings",
+    title: "Paramètres",
+    url: "/dashboard/tester/settings",
     icon: SettingsIcon,
   },
   {
-    title: "Get Help",
+    title: "Aide",
     url: "/help",
     icon: HelpCircleIcon,
   },
 ]
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function TesterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuth()
 
   const userData = {
     name: user?.firstName && user?.lastName
       ? `${user.firstName} ${user.lastName}`
-      : user?.email?.split('@')[0] || 'User',
+      : user?.email?.split('@')[0] || 'Testeur',
     email: user?.email || '',
     avatar: user?.avatar || '/avatars/shadcn.jpg',
   }
-
-  // Sélectionner la navigation en fonction du rôle
-  const navItems = user?.role === 'PRO' || user?.role === 'ADMIN'
-    ? proNavMain
-    : userNavMain
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -120,7 +89,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
-              <a href="/dashboard/pro">
+              <a href="/dashboard/tester">
                 <ArrowUpCircleIcon className="h-5 w-5" />
                 <span className="text-base font-semibold">SuperTry</span>
               </a>
@@ -129,8 +98,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navItems} />
-        <NavSecondary items={navSecondary} className="mt-auto" />
+        <NavMain items={testerNavMain} />
+        <NavSecondary items={testerNavSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={userData} />

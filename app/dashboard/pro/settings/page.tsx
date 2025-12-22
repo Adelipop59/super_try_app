@@ -1,10 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/auth-context"
 import { api, UpdateProfileData } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -145,14 +141,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <ProtectedRoute>
-      <SidebarProvider>
-        <AppSidebar variant="inset" />
-        <SidebarInset>
-          <SiteHeader />
-          <div className="flex flex-1 flex-col">
-            <div className="@container/main flex flex-1 flex-col gap-2">
-              <div className="flex flex-col gap-6 py-4 md:gap-8 md:py-6 px-4 lg:px-6">
+    <div className="flex flex-col gap-6 py-4 md:gap-8 md:py-6 px-4 lg:px-6">
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight">Paramètres</h2>
                   <p className="text-muted-foreground">
@@ -366,11 +355,6 @@ export default function SettingsPage() {
                     </div>
                   </CardContent>
                 </Card>
-              </div>
-            </div>
-          </div>
-        </SidebarInset>
-      </SidebarProvider>
-    </ProtectedRoute>
+    </div>
   )
 }

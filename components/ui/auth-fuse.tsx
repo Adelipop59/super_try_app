@@ -231,18 +231,32 @@ function SignUpForm() {
   const { signUp } = useAuth();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState<"USER" | "PRO">("USER");
 
   const handleSignUp = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
-    setLoading(true);
 
     const formData = new FormData(event.currentTarget);
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
+    const confirmPassword = formData.get("confirmPassword") as string;
+
+    // Validation des mots de passe
+    if (password !== confirmPassword) {
+      setError("Les mots de passe ne correspondent pas");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Le mot de passe doit contenir au moins 6 caractères");
+      return;
+    }
+
+    setLoading(true);
 
     try {
-      await signUp({ email, password, role: "USER" });
+      await signUp({ email, password, role });
     } catch (err: any) {
       setError(err.message || "Erreur lors de l'inscription");
     } finally {
@@ -262,10 +276,51 @@ function SignUpForm() {
             {error}
           </div>
         )}
+
+        {/* Role Selection */}
+        <div className="grid gap-2">
+          <Label>Je m'inscris en tant que</Label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setRole("USER")}
+              className={cn(
+                "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
+                role === "USER"
+                  ? "border-primary bg-primary/5"
+                  : "border-input hover:border-primary/50"
+              )}
+            >
+              <div className="text-2xl">🧪</div>
+              <div className="text-sm font-medium">Testeur</div>
+              <div className="text-xs text-muted-foreground text-center">
+                Je veux tester des produits
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setRole("PRO")}
+              className={cn(
+                "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
+                role === "PRO"
+                  ? "border-primary bg-primary/5"
+                  : "border-input hover:border-primary/50"
+              )}
+            >
+              <div className="text-2xl">🏢</div>
+              <div className="text-sm font-medium">Vendeur</div>
+              <div className="text-xs text-muted-foreground text-center">
+                Je veux faire tester mes produits
+              </div>
+            </button>
+          </div>
+        </div>
+
         <div className="grid gap-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" placeholder="m@example.com" required autoComplete="email" /></div>
         <PasswordInput name="password" label="Password" required autoComplete="new-password" placeholder="Password" minLength={6} />
+        <PasswordInput name="confirmPassword" label="Confirm Password" required autoComplete="new-password" placeholder="Confirm Password" minLength={6} />
         <Button type="submit" variant="outline" className="mt-2" disabled={loading}>
-          {loading ? "Création..." : "Sign Up"}
+          {loading ? "Création..." : `Sign Up as ${role === "USER" ? "Testeur" : "Vendeur"}`}
         </Button>
       </div>
     </form>

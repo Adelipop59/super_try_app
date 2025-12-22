@@ -2,6 +2,7 @@
 
 import { type LucideIcon } from "lucide-react"
 import { usePathname } from "next/navigation"
+import Link from "next/link"
 
 import {
   SidebarGroup,
@@ -38,10 +39,10 @@ export function NavMain({
                   isActive={isActive}
                   className={isActive ? "bg-sidebar-accent text-foreground font-medium" : ""}
                 >
-                  <a href={item.url}>
+                  <Link href={item.url}>
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             )
