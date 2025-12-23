@@ -229,7 +229,7 @@ export default function ProductsPage() {
                   <Card>
                     <CardContent className="flex flex-col items-center justify-center py-8 text-center">
                       <p className="text-muted-foreground mb-4">
-                        Vous n'avez pas encore de produit
+                        Vous n&apos;avez pas encore de produit
                       </p>
                       <Button onClick={() => setIsCreateDialogOpen(true)}>
                         <PlusIcon className="mr-2 h-4 w-4" />
@@ -336,7 +336,7 @@ export default function ProductsPage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="create-imageUrl" className="text-sm font-medium">
-                URL de l'image
+                URL de l&apos;image
               </Label>
               <Input
                 id="create-imageUrl"
@@ -457,7 +457,7 @@ export default function ProductsPage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-imageUrl" className="text-sm font-medium">
-                URL de l'image
+                URL de l&apos;image
               </Label>
               <Input
                 id="edit-imageUrl"
@@ -521,7 +521,7 @@ export default function ProductsPage() {
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
               Êtes-vous sûr de vouloir supprimer le produit{' '}
-              <span className="font-semibold text-foreground">"{deletingProduct?.name}"</span> ?
+              <span className="font-semibold text-foreground">&quot;{deletingProduct?.name}&quot;</span> ?
               Toutes les données associées seront définitivement supprimées.
             </p>
           </div>

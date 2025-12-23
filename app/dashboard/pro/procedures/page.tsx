@@ -347,7 +347,7 @@ export default function ProceduresPage() {
                   <Card>
                     <CardContent className="flex flex-col items-center justify-center py-8 text-center">
                       <p className="text-muted-foreground mb-4">
-                        Vous n'avez pas encore de template de procédure
+                        Vous n&apos;avez pas encore de template de procédure
                       </p>
                       <Button onClick={() => setIsCreateDialogOpen(true)}>
                         <PlusIcon className="mr-2 h-4 w-4" />
@@ -532,7 +532,7 @@ export default function ProceduresPage() {
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
               Êtes-vous sûr de vouloir supprimer le template{' '}
-              <span className="font-semibold text-foreground">"{deletingTemplate?.name}"</span> ?
+              <span className="font-semibold text-foreground">&quot;{deletingTemplate?.name}&quot;</span> ?
             </p>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">

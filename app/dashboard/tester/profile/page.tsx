@@ -168,7 +168,7 @@ export default function ProfilePage() {
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              L'email ne peut pas être modifié ici
+              L&apos;email ne peut pas être modifié ici
             </p>
           </div>
 

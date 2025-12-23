@@ -68,7 +68,7 @@ export default function EarningsPage() {
           Mes Gains
         </h1>
         <p className="text-muted-foreground mt-2">
-          Suivez l'évolution de vos revenus et récompenses
+          Suivez l&apos;évolution de vos revenus et récompenses
         </p>
       </div>
 

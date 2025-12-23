@@ -93,7 +93,7 @@ export default function SettingsPage() {
             <div className="space-y-0.5">
               <Label htmlFor="session-updates">Mises à jour de sessions</Label>
               <p className="text-sm text-muted-foreground">
-                Notifications sur l'état de vos sessions
+                Notifications sur l&apos;état de vos sessions
               </p>
             </div>
             <Switch id="session-updates" defaultChecked />

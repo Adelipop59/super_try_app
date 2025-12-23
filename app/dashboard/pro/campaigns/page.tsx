@@ -850,7 +850,7 @@ function CampaignsPageContent() {
                   <Card>
                     <CardContent className="flex flex-col items-center justify-center py-8 text-center">
                       <p className="text-muted-foreground mb-4">
-                        Vous n'avez pas encore de campagne
+                        Vous n&apos;avez pas encore de campagne
                       </p>
                       <Button onClick={() => setIsCreateDialogOpen(true)}>
                         <PlusIcon className="mr-2 h-4 w-4" />
@@ -1212,7 +1212,7 @@ function CampaignsPageContent() {
             <div className="grid gap-5 py-4 max-h-[400px] overflow-y-auto">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-sm font-medium">Criteres d'eligibilite</Label>
+                  <Label className="text-sm font-medium">Criteres d&apos;eligibilite</Label>
                   <p className="text-xs text-muted-foreground mt-1">
                     Choisissez un template ou configurez manuellement
                   </p>
@@ -1802,7 +1802,7 @@ function CampaignsPageContent() {
                 <div className="grid gap-5 py-4 max-h-[400px] overflow-y-auto">
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label className="text-sm font-medium">Criteres d'eligibilite</Label>
+                      <Label className="text-sm font-medium">Criteres d&apos;eligibilite</Label>
                       <p className="text-xs text-muted-foreground mt-1">
                         Choisissez un template ou configurez manuellement
                       </p>
@@ -2239,7 +2239,7 @@ function CampaignsPageContent() {
                 <div className="grid gap-3">
                   <h4 className="text-sm font-semibold flex items-center gap-2">
                     <FilterIcon className="h-4 w-4" />
-                    Criteres d'eligibilite
+                    Criteres d&apos;eligibilite
                   </h4>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     {viewingCampaign.criteria.minAge && (
@@ -2442,7 +2442,7 @@ function CampaignsPageContent() {
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
               Êtes-vous sûr de vouloir supprimer la campagne{' '}
-              <span className="font-semibold text-foreground">"{deletingCampaign?.title}"</span> ?
+              <span className="font-semibold text-foreground">&quot;{deletingCampaign?.title}&quot;</span> ?
               Toutes les données associées seront définitivement supprimées.
             </p>
           </div>

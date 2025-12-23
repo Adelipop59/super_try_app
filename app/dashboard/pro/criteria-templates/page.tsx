@@ -215,7 +215,7 @@ export default function CriteriaTemplatesPage() {
                   <div>
                     <h2 className="text-2xl font-bold tracking-tight">Templates de criteres</h2>
                     <p className="text-muted-foreground">
-                      Gerez vos templates de criteres d'eligibilite reutilisables
+                      Gerez vos templates de criteres d&apos;eligibilite reutilisables
                     </p>
                   </div>
                   <Button onClick={() => setIsCreateDialogOpen(true)}>
@@ -233,7 +233,7 @@ export default function CriteriaTemplatesPage() {
                     <CardContent className="flex flex-col items-center justify-center py-8 text-center">
                       <FilterIcon className="h-12 w-12 text-muted-foreground mb-4" />
                       <p className="text-muted-foreground mb-4">
-                        Vous n'avez pas encore de template de criteres
+                        Vous n&apos;avez pas encore de template de criteres
                       </p>
                       <Button onClick={() => setIsCreateDialogOpen(true)}>
                         <PlusIcon className="mr-2 h-4 w-4" />
@@ -595,7 +595,7 @@ export default function CriteriaTemplatesPage() {
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
               Etes-vous sur de vouloir supprimer le template{' '}
-              <span className="font-semibold text-foreground">"{deletingTemplate?.name}"</span> ?
+              <span className="font-semibold text-foreground">&quot;{deletingTemplate?.name}&quot;</span> ?
             </p>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">

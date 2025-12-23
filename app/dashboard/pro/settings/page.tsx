@@ -206,7 +206,7 @@ export default function SettingsPage() {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor="companyName">Nom de l'entreprise</Label>
+                            <Label htmlFor="companyName">Nom de l&apos;entreprise</Label>
                             <Input
                               id="companyName"
                               placeholder="ACME Corp"

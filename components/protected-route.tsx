@@ -49,7 +49,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
           <p className="text-lg font-semibold text-destructive">Accès refusé</p>
-          <p className="mt-2 text-muted-foreground">Vous n'avez pas les permissions pour accéder à cette page.</p>
+          <p className="mt-2 text-muted-foreground">Vous n&apos;avez pas les permissions pour accéder à cette page.</p>
         </div>
       </div>
     )

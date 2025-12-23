@@ -128,7 +128,7 @@ export default function PaymentsPage() {
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">Mes paiements</h1>
                 <p className="text-muted-foreground">
-                  Consultez l'historique de vos transactions
+                  Consultez l&apos;historique de vos transactions
                 </p>
               </div>
             </div>

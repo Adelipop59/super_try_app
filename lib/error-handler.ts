@@ -191,15 +191,29 @@ export const formatValidationErrors = (fields?: Record<string, string[]>): strin
 export const logError = (error: unknown, context?: string) => {
   const errorContext = getErrorContext(error)
 
-  console.error('Error occurred:', {
+  const logData = {
     context,
     type: errorContext.type,
     message: errorContext.message,
     statusCode: errorContext.statusCode,
     details: errorContext.details,
     timestamp: new Date().toISOString(),
-    stack: error instanceof Error ? error.stack : undefined
-  })
+    stack: error instanceof Error ? error.stack : undefined,
+    // Include raw error for debugging
+    rawError: error instanceof Error ? {
+      name: error.name,
+      message: error.message,
+      ...(error as any).statusCode && { statusCode: (error as any).statusCode },
+      ...(error as any).errors && { errors: (error as any).errors }
+    } : error
+  }
+
+  console.error('Error occurred:', JSON.stringify(logData, null, 2))
+
+  // Also log the original error for stack trace visibility
+  if (error instanceof Error) {
+    console.error('Original error:', error)
+  }
 
   // TODO: Send to monitoring service (Sentry, LogRocket, etc.)
   // if (process.env.NODE_ENV === 'production') {
