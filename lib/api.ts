@@ -377,6 +377,51 @@ export interface UpdateCriteriaTemplateData {
   requirePrime?: boolean | null
 }
 
+// Eligible Campaign interfaces (for testers)
+export interface EligibleCampaignProduct {
+  product: {
+    name: string
+    imageUrl: string
+    category?: {
+      id: string
+      name: string
+    }
+  }
+  bonus: string
+  reimbursedPrice: boolean
+  reimbursedShipping: boolean
+}
+
+export interface EligibleCampaignSeller {
+  id: string
+  email: string
+  companyName?: string
+}
+
+// For non-KYC users (limited data)
+export interface EligibleCampaignLimited {
+  id: string
+  imageUrl: string
+  bonus: string
+  reimbursedPrice: boolean
+  reimbursedShipping: boolean
+  requiresKyc: true
+}
+
+// For KYC verified users (full data)
+export interface EligibleCampaignFull {
+  id: string
+  title: string
+  description?: string
+  seller: EligibleCampaignSeller
+  products: EligibleCampaignProduct[]
+  startDate?: string
+  availableSlots: number
+  requiresKyc: false
+}
+
+export type EligibleCampaign = EligibleCampaignLimited | EligibleCampaignFull
+
 // Pagination interfaces
 export interface PaginationMeta {
   total: number
@@ -698,6 +743,17 @@ class ApiClient {
 
   async getVerificationStatus(): Promise<{ status: string; verified_at?: string; failure_reason?: string }> {
     return this.request('/users/me/verify/status')
+  }
+
+  async retryVerification(): Promise<{ verification_url: string; session_id: string }> {
+    return this.request('/users/me/verify/retry', {
+      method: 'POST',
+    })
+  }
+
+  // Eligible campaigns for testers (USER role)
+  async getEligibleCampaigns(page: number = 1, limit: number = 20): Promise<PaginatedResponse<EligibleCampaign>> {
+    return this.request<PaginatedResponse<EligibleCampaign>>(`/campaigns/eligible?page=${page}&limit=${limit}`)
   }
 
   // Dashboard endpoints

@@ -5,6 +5,7 @@ import {
   ArrowUpCircleIcon,
   HelpCircleIcon,
   LayoutDashboardIcon,
+  RocketIcon,
   SettingsIcon,
   TestTubeIcon,
   TrophyIcon,
@@ -32,6 +33,11 @@ const testerNavMain = [
     title: "Dashboard",
     url: "/dashboard/tester",
     icon: LayoutDashboardIcon,
+  },
+  {
+    title: "Campagnes",
+    url: "/dashboard/tester/campaigns",
+    icon: RocketIcon,
   },
   {
     title: "Mes Sessions",

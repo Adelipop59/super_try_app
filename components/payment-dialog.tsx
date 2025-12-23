@@ -59,8 +59,8 @@ export function PaymentDialog({
 
       // Construire les URLs complètes
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001'
-      const successUrl = `${baseUrl}/dashboard/campaigns?payment=success&campaign=${campaign.id}`
-      const cancelUrl = `${baseUrl}/dashboard/campaigns?payment=cancelled&campaign=${campaign.id}`
+      const successUrl = `${baseUrl}/dashboard/pro/campaigns?payment=success&campaign=${campaign.id}`
+      const cancelUrl = `${baseUrl}/dashboard/pro/campaigns?payment=cancelled&campaign=${campaign.id}`
 
       const response = await api.createCheckoutSession(campaign.id, {
         successUrl,

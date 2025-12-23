@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { KycVerificationBanner } from "@/components/kyc-verification-banner"
 import { UserIcon, MailIcon, PhoneIcon, CalendarIcon, ShieldCheckIcon, AlertCircleIcon, CheckCircle2Icon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -48,18 +49,6 @@ export default function ProfilePage() {
     }
   }
 
-  const handleVerification = async () => {
-    try {
-      const response = await api.initiateVerification()
-      // Redirect to Stripe Identity verification
-      window.location.href = response.verification_url
-    } catch (error: any) {
-      toast.error(error.message || "Erreur lors de l'initialisation de la vérification")
-    }
-  }
-
-  const verificationStatus = user?.verificationStatus || 'unverified'
-
   return (
     <div className="flex flex-col gap-6 py-4 md:py-6">
       {/* Header */}
@@ -73,57 +62,15 @@ export default function ProfilePage() {
         </p>
       </div>
 
-      {/* Verification Status Banner */}
-      <Card className={`mx-4 lg:mx-6 ${
-        verificationStatus === 'verified' ? 'border-green-500 bg-green-50' :
-        verificationStatus === 'pending' ? 'border-orange-500 bg-orange-50' :
-        verificationStatus === 'failed' ? 'border-red-500 bg-red-50' :
-        'border-blue-500 bg-blue-50'
-      }`}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {verificationStatus === 'verified' ? (
-              <CheckCircle2Icon className="h-5 w-5 text-green-600" />
-            ) : verificationStatus === 'pending' ? (
-              <AlertCircleIcon className="h-5 w-5 text-orange-600" />
-            ) : (
-              <ShieldCheckIcon className="h-5 w-5 text-blue-600" />
-            )}
-            Statut de vérification
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <Badge
-                variant={verificationStatus === 'verified' ? 'default' : 'secondary'}
-                className={
-                  verificationStatus === 'verified' ? 'bg-green-600' :
-                  verificationStatus === 'pending' ? 'bg-orange-600' :
-                  verificationStatus === 'failed' ? 'bg-red-600' :
-                  'bg-blue-600'
-                }
-              >
-                {verificationStatus === 'verified' && 'Vérifié'}
-                {verificationStatus === 'pending' && 'En attente'}
-                {verificationStatus === 'failed' && 'Échec'}
-                {verificationStatus === 'unverified' && 'Non vérifié'}
-              </Badge>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {verificationStatus === 'verified' && 'Votre identité a été vérifiée avec succès'}
-                {verificationStatus === 'pending' && 'Votre vérification est en cours de traitement'}
-                {verificationStatus === 'failed' && 'La vérification a échoué, veuillez réessayer'}
-                {verificationStatus === 'unverified' && 'Vérifiez votre identité pour participer aux sessions'}
-              </p>
-            </div>
-            {verificationStatus !== 'verified' && verificationStatus !== 'pending' && (
-              <Button onClick={handleVerification}>
-                Vérifier mon identité
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Verification Status Banner - Only show if NOT verified */}
+      <div className="px-4 lg:px-6">
+        <KycVerificationBanner
+          verificationStatus={user?.verificationStatus}
+          autoFetch={true}
+          hideIfVerified={true}
+          onStatusChange={() => window.location.reload()}
+        />
+      </div>
 
       {/* Profile Information */}
       <Card className="mx-4 lg:mx-6">

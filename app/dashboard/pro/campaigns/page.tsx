@@ -236,13 +236,13 @@ function CampaignsPageContent() {
       // Refresh campaigns to show updated status
       fetchData()
       // Remove query params from URL
-      router.replace('/dashboard/campaigns')
+      router.replace('/dashboard/pro/campaigns')
     } else if (payment === 'cancelled' && campaignId) {
       toast.info('Paiement annulé', {
         description: 'Le paiement a été annulé. Vous pouvez réessayer quand vous voulez.',
       })
       // Remove query params from URL
-      router.replace('/dashboard/campaigns')
+      router.replace('/dashboard/pro/campaigns')
     }
   }, [searchParams])
 
