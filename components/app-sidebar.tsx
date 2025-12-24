@@ -32,7 +32,7 @@ import { useAuth } from "@/contexts/auth-context"
 // Navigation pour les utilisateurs PRO
 const proNavMain = [
   {
-    title: "Overview",
+    title: "Dashboard",
     url: "/dashboard/pro",
     icon: LayoutDashboardIcon,
   },
@@ -112,7 +112,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     : userNavMain
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar collapsible="icon" variant="sidebar" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -122,7 +122,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <a href="/dashboard/pro">
                 <ArrowUpCircleIcon className="h-5 w-5" />
-                <span className="text-base font-semibold">SuperTry</span>
+                <span className="text-base font-semibold " >SuperTry</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

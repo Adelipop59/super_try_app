@@ -28,8 +28,18 @@ export function NavMain({
       <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
           {items.map((item) => {
-            const isActive = pathname === item.url ||
-              (item.url !== '/dashboard' && pathname.startsWith(item.url))
+            // Trouver tous les items qui correspondent au pathname actuel
+            const matchingItems = items.filter(i =>
+              pathname === i.url || pathname.startsWith(i.url + '/')
+            )
+
+            // Sélectionner l'item avec l'URL la plus longue (la plus spécifique)
+            const mostSpecificItem = matchingItems.reduce((prev, current) =>
+              (current.url.length > prev.url.length) ? current : prev
+            , matchingItems[0])
+
+            // Cet item est actif seulement s'il est le plus spécifique
+            const isActive = mostSpecificItem?.url === item.url
 
             return (
               <SidebarMenuItem key={item.title}>
