@@ -42,6 +42,11 @@ const proNavMain = [
     icon: MegaphoneIcon,
   },
   {
+    title: "Sessions",
+    url: "/dashboard/pro/sessions",
+    icon: TestTubeIcon,
+  },
+  {
     title: "Procedures",
     url: "/dashboard/pro/procedures",
     icon: ListChecksIcon,

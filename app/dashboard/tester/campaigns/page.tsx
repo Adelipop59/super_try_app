@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { KycVerificationBanner } from "@/components/kyc-verification-banner"
+import { ApplyCampaignDialog } from "@/components/apply-campaign-dialog"
 import {
   RocketIcon,
   ShieldCheckIcon,
@@ -32,6 +33,8 @@ export default function CampaignsPage() {
   const [pagination, setPagination] = useState<PaginationMeta | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [kycStatus, setKycStatus] = useState<'unverified' | 'pending' | 'verified' | 'failed'>()
+  const [selectedCampaign, setSelectedCampaign] = useState<EligibleCampaignFull | null>(null)
+  const [applyDialogOpen, setApplyDialogOpen] = useState(false)
 
   const isKycVerified = kycStatus === 'verified'
 
@@ -74,8 +77,12 @@ export default function CampaignsPage() {
       toast.error("Veuillez compléter votre vérification KYC pour postuler")
       return
     }
-    // TODO: Implement application logic
-    toast.info("Fonctionnalité de candidature en cours de développement")
+
+    // Only show dialog for full campaigns (KYC verified users)
+    if (isCampaignFull(campaign)) {
+      setSelectedCampaign(campaign)
+      setApplyDialogOpen(true)
+    }
   }
 
   const isCampaignFull = (campaign: EligibleCampaign): campaign is EligibleCampaignFull => {
@@ -202,6 +209,9 @@ export default function CampaignsPage() {
               <div className="space-y-4">
                 {campaigns.map((campaign) => {
                   const isFullData = isCampaignFull(campaign)
+                  const imageUrl = isFullData
+                    ? (campaign.products[0]?.product.imageUrl || '/placeholder-product.jpg')
+                    : (campaign.imageUrl || '/placeholder-product.jpg')
 
                   return (
                     <Card
@@ -212,14 +222,16 @@ export default function CampaignsPage() {
                     >
                       <div className="flex gap-4 p-4">
                         {/* Image */}
-                        <div className="relative flex-shrink-0">
-                          <img
-                            src={campaign.imageUrl}
-                            alt={isFullData ? campaign.title : "Product"}
-                            className={`h-24 w-24 rounded-md object-cover ${
-                              campaign.requiresKyc ? 'blur-md' : ''
-                            }`}
-                          />
+                        <div className="relative shrink-0">
+                          {imageUrl && (
+                            <img
+                              src={imageUrl}
+                              alt={isFullData ? campaign.title : "Product"}
+                              className={`h-24 w-24 rounded-md object-cover ${
+                                campaign.requiresKyc ? 'blur-md' : ''
+                              }`}
+                            />
+                          )}
                           {campaign.requiresKyc && (
                             <div className="absolute inset-0 flex items-center justify-center">
                               <LockIcon className="h-8 w-8 text-gray-600" />
@@ -354,7 +366,7 @@ export default function CampaignsPage() {
                               ) : (
                                 <>
                                   <RocketIcon className="mr-2 h-4 w-4" />
-                                  Postuler
+                                  Participer au test
                                 </>
                               )}
                             </Button>
@@ -392,6 +404,14 @@ export default function CampaignsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Apply Campaign Dialog */}
+      <ApplyCampaignDialog
+        campaign={selectedCampaign}
+        open={applyDialogOpen}
+        onOpenChange={setApplyDialogOpen}
+        onSuccess={fetchCampaigns}
+      />
     </div>
   )
 }

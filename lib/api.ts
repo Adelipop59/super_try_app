@@ -45,20 +45,238 @@ export interface Profile {
 }
 
 // Dashboard interfaces
+export type SessionStatus =
+  | 'PENDING'
+  | 'ACCEPTED'
+  | 'REJECTED'
+  | 'PRICE_VALIDATED'
+  | 'PURCHASE_SUBMITTED'
+  | 'IN_PROGRESS'
+  | 'SUBMITTED'
+  | 'COMPLETED'
+  | 'CANCELLED'
+  | 'DISPUTED'
+
 export interface Session {
   id: string
-  status: string
+  status: SessionStatus
   createdAt: string
   updatedAt: string
+  productPrice?: number
+  purchaseProof?: string
+  purchaseDate?: string
+  actualPrice?: number
+  actualShipping?: number
+  testData?: Record<string, any>
+  feedback?: string
+  cancelReason?: string
+  disputeReason?: string
+  disputeDescription?: string
   campaign?: {
     id: string
     title: string
+    description?: string
   }
   tester?: {
     id: string
     email: string
     firstName?: string
     lastName?: string
+  }
+  seller?: {
+    id: string
+    email: string
+    companyName?: string
+  }
+}
+
+export interface ApplyToCampaignData {
+  campaignId: string
+}
+
+export interface ValidatePriceData {
+  productPrice: number
+}
+
+export interface SubmitPurchaseData {
+  purchaseProof: string
+  orderNumber?: string
+  purchaseDate: string
+  actualPrice: number
+  actualShipping: number
+}
+
+export interface SubmitTestData {
+  testData: Record<string, any>
+  feedback?: string
+}
+
+export interface CancelSessionData {
+  reason: string
+}
+
+export interface DisputeSessionData {
+  reason: string
+  description: string
+}
+
+// Step interfaces (for test procedures)
+export type StepType = 'TEXT' | 'PHOTO' | 'VIDEO' | 'CHECKLIST' | 'RATING' | 'PRICE_VALIDATION'
+
+export interface Step {
+  id: string
+  procedureId: string
+  title: string
+  description?: string
+  type: StepType
+  order: number
+  isRequired: boolean
+  checklistItems?: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface StepProgress {
+  id: string
+  sessionId: string
+  stepId: string
+  isCompleted: boolean
+  completedAt?: string
+  submissionData?: Record<string, any>
+  step?: Step
+}
+
+export interface CompleteStepData {
+  submissionData: Record<string, any>
+}
+
+// Review interfaces
+export interface Review {
+  id: string
+  sessionId: string
+  campaignId: string
+  productId?: string
+  testerId: string
+  rating: number
+  comment?: string
+  isPublic: boolean
+  republishProposed: boolean
+  republishAccepted?: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateReviewData {
+  rating: number
+  comment?: string
+  isPublic?: boolean
+}
+
+// Message interfaces
+export interface Message {
+  id: string
+  sessionId: string
+  senderId: string
+  recipientId?: string
+  content: string
+  isRead: boolean
+  readAt?: string
+  createdAt: string
+  sender?: {
+    id: string
+    firstName?: string
+    lastName?: string
+    email: string
+  }
+}
+
+// Notification interfaces
+export type NotificationType =
+  | 'APPLICATION_ACCEPTED'
+  | 'APPLICATION_REJECTED'
+  | 'PURCHASE_REMINDER'
+  | 'TEST_VALIDATED'
+  | 'PAYMENT_RECEIVED'
+  | 'NEW_MESSAGE'
+  | 'DISPUTE_CREATED'
+  | 'DISPUTE_RESOLVED'
+
+export interface Notification {
+  id: string
+  userId: string
+  type: NotificationType
+  title: string
+  message: string
+  isRead: boolean
+  readAt?: string
+  relatedSessionId?: string
+  metadata?: Record<string, any>
+  createdAt: string
+}
+
+export interface NotificationPreferences {
+  emailNotifications: boolean
+  pushNotifications: boolean
+  applicationUpdates: boolean
+  messages: boolean
+  paymentUpdates: boolean
+  marketing: boolean
+}
+
+// Wallet interfaces
+export interface Wallet {
+  id: string
+  userId: string
+  balance: number
+  currency: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface WalletTransaction {
+  id: string
+  walletId: string
+  type: 'CREDIT' | 'DEBIT' | 'WITHDRAWAL' | 'REFUND'
+  amount: number
+  balance: number
+  description: string
+  relatedSessionId?: string
+  status: 'PENDING' | 'COMPLETED' | 'FAILED'
+  createdAt: string
+}
+
+export type WithdrawalMethod = 'BANK_TRANSFER' | 'GIFT_CARD'
+
+export interface WithdrawalRequest {
+  id: string
+  walletId: string
+  amount: number
+  method: WithdrawalMethod
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'REJECTED'
+  bankDetails?: {
+    iban: string
+    bic: string
+    accountName: string
+  }
+  giftCardDetails?: {
+    provider: string
+    email: string
+  }
+  processedAt?: string
+  createdAt: string
+}
+
+export interface CreateWithdrawalData {
+  amount: number
+  method: WithdrawalMethod
+  bankDetails?: {
+    iban: string
+    bic: string
+    accountName: string
+  }
+  giftCardDetails?: {
+    provider: string
+    email: string
   }
 }
 
@@ -255,8 +473,6 @@ export interface UpdateDistributionData {
 }
 
 // Procedure Template interfaces
-export type StepType = 'TEXT' | 'PHOTO' | 'VIDEO' | 'CHECKLIST' | 'RATING' | 'PRICE_VALIDATION'
-
 export interface StepTemplate {
   id: string
   title: string
@@ -1076,6 +1292,192 @@ class ApiClient {
   async getMyTransactions(page: number = 1, limit: number = 20): Promise<CampaignTransactionsResponse> {
     return this.request<CampaignTransactionsResponse>(`/campaigns/my-transactions?page=${page}&limit=${limit}`, {
       method: 'GET',
+    })
+  }
+
+  // Sessions endpoints (for testers)
+  async applyToCampaign(data: ApplyToCampaignData): Promise<Session> {
+    return this.request<Session>('/sessions/apply', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getMySessions(): Promise<Session[]> {
+    return this.request<Session[]>('/sessions')
+  }
+
+  async getSession(id: string): Promise<Session> {
+    return this.request<Session>(`/sessions/${id}`)
+  }
+
+  async validatePrice(sessionId: string, data: ValidatePriceData): Promise<Session> {
+    return this.request<Session>(`/sessions/${sessionId}/validate-price`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async submitPurchase(sessionId: string, data: SubmitPurchaseData): Promise<Session> {
+    return this.request<Session>(`/sessions/${sessionId}/submit-purchase`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async submitTest(sessionId: string, data: SubmitTestData): Promise<Session> {
+    return this.request<Session>(`/sessions/${sessionId}/submit-test`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async cancelSession(sessionId: string, data: CancelSessionData): Promise<Session> {
+    return this.request<Session>(`/sessions/${sessionId}/cancel`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async disputeSession(sessionId: string, data: DisputeSessionData): Promise<Session> {
+    return this.request<Session>(`/sessions/${sessionId}/dispute`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Step Progress endpoints
+  async getSessionSteps(sessionId: string): Promise<StepProgress[]> {
+    return this.request<StepProgress[]>(`/sessions/${sessionId}/steps`)
+  }
+
+  async completeStep(sessionId: string, stepId: string, data: CompleteStepData): Promise<StepProgress> {
+    return this.request<StepProgress>(`/sessions/${sessionId}/steps/${stepId}/complete`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Review endpoints
+  async createReview(sessionId: string, data: CreateReviewData): Promise<Review> {
+    return this.request<Review>(`/reviews/sessions/${sessionId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getMyReviews(): Promise<Review[]> {
+    return this.request<Review[]>('/reviews/my-reviews')
+  }
+
+  async acceptRepublish(reviewId: string): Promise<Review> {
+    return this.request<Review>(`/reviews/${reviewId}/accept-republish`, {
+      method: 'PATCH',
+    })
+  }
+
+  async declineRepublish(reviewId: string): Promise<Review> {
+    return this.request<Review>(`/reviews/${reviewId}/decline-republish`, {
+      method: 'PATCH',
+    })
+  }
+
+  // Message endpoints
+  async sendMessage(sessionId: string, content: string, attachments: string[] = []): Promise<Message> {
+    return this.request<Message>(`/sessions/${sessionId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content, attachments }),
+    })
+  }
+
+  async getSessionMessages(sessionId: string): Promise<Message[]> {
+    return this.request<Message[]>(`/sessions/${sessionId}/messages`)
+  }
+
+  async markAllMessagesAsRead(sessionId: string): Promise<{ count: number }> {
+    return this.request<{ count: number }>(`/sessions/${sessionId}/messages/read-all`, {
+      method: 'PATCH',
+    })
+  }
+
+  // Notification endpoints
+  async getMyNotifications(): Promise<Notification[]> {
+    return this.request<Notification[]>('/notifications')
+  }
+
+  async markNotificationAsRead(notificationId: string): Promise<Notification> {
+    return this.request<Notification>(`/notifications/${notificationId}/read`, {
+      method: 'PATCH',
+    })
+  }
+
+  async markAllNotificationsAsRead(): Promise<{ message: string }> {
+    return this.request('/notifications/mark-all-read', {
+      method: 'PATCH',
+    })
+  }
+
+  async getNotificationPreferences(): Promise<NotificationPreferences> {
+    return this.request<NotificationPreferences>('/notifications/preferences')
+  }
+
+  async updateNotificationPreferences(data: Partial<NotificationPreferences>): Promise<NotificationPreferences> {
+    return this.request<NotificationPreferences>('/notifications/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Wallet endpoints
+  async getMyWallet(): Promise<Wallet> {
+    return this.request<Wallet>('/wallets/my-wallet')
+  }
+
+  async getWalletTransactions(limit: number = 50): Promise<WalletTransaction[]> {
+    return this.request<WalletTransaction[]>(`/wallets/my-wallet/transactions?limit=${limit}`)
+  }
+
+  async createWithdrawal(data: CreateWithdrawalData): Promise<WithdrawalRequest> {
+    return this.request<WithdrawalRequest>('/wallets/withdraw', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getMyWithdrawals(): Promise<WithdrawalRequest[]> {
+    return this.request<WithdrawalRequest[]>('/wallets/my-withdrawals')
+  }
+
+  // PRO Seller - Campaign Applications endpoints
+  async getCampaignApplications(campaignId: string, status?: string): Promise<{data: Session[], meta?: PaginationMeta}> {
+    const params = status ? `?status=${status}` : ''
+    return this.request<{data: Session[], meta?: PaginationMeta}>(`/campaigns/${campaignId}/applications${params}`)
+  }
+
+  async acceptSession(sessionId: string): Promise<Session> {
+    return this.request<Session>(`/sessions/${sessionId}/accept`, {
+      method: 'PATCH'
+    })
+  }
+
+  async rejectSession(sessionId: string, rejectionReason: string): Promise<Session> {
+    return this.request<Session>(`/sessions/${sessionId}/reject`, {
+      method: 'PATCH',
+      body: JSON.stringify({ rejectionReason })
+    })
+  }
+
+  async validateSession(sessionId: string, rating: number, ratingComment?: string): Promise<Session> {
+    return this.request<Session>(`/sessions/${sessionId}/validate`, {
+      method: 'PATCH',
+      body: JSON.stringify({ rating, ratingComment })
+    })
+  }
+
+  async rateSession(sessionId: string, rating: number, ratingComment?: string): Promise<Session> {
+    return this.request<Session>(`/sessions/${sessionId}/rate`, {
+      method: 'POST',
+      body: JSON.stringify({ rating, ratingComment })
     })
   }
 }
