@@ -1,33 +1,34 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useAuth } from "@/contexts/auth-context"
-import { api, WalletBalance, Transaction } from "@/lib/api"
+import { api, Wallet, WalletTransaction, WithdrawalRequest } from "@/lib/api"
 import { useErrorHandler } from "@/hooks/use-error-handler"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { WalletIcon, ArrowUpIcon, ArrowDownIcon, HistoryIcon, CoinsIcon } from "lucide-react"
+import { WithdrawalDialog } from "@/components/withdrawal-dialog"
+import { WalletIcon, ArrowUpIcon, ArrowDownIcon, HistoryIcon, CoinsIcon, ArrowUpRightIcon } from "lucide-react"
 
 export default function WalletPage() {
-  const { user } = useAuth()
   const { handleErrorWithRetry } = useErrorHandler()
-  const [balance, setBalance] = useState<WalletBalance | null>(null)
-  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [wallet, setWallet] = useState<Wallet | null>(null)
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([])
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([])
   const [loading, setLoading] = useState(true)
+  const [withdrawalOpen, setWithdrawalOpen] = useState(false)
 
   const fetchWalletData = async () => {
-    if (!user) return
-
     try {
       setLoading(true)
-      const [walletData, transactionsData] = await Promise.all([
-        api.getWalletBalance(),
-        api.getTransactions(20)
+      const [walletData, transactionsData, withdrawalsData] = await Promise.all([
+        api.getMyWallet(),
+        api.getWalletTransactions(50),
+        api.getMyWithdrawals()
       ])
-      setBalance(walletData)
-      setTransactions(transactionsData.transactions)
+      setWallet(walletData)
+      setTransactions(transactionsData)
+      setWithdrawals(withdrawalsData)
     } catch (error) {
       handleErrorWithRetry(
         error,
@@ -41,9 +42,9 @@ export default function WalletPage() {
 
   useEffect(() => {
     fetchWalletData()
-  }, [user])
+  }, [])
 
-  const recentCredits = transactions.filter(t => t.type === 'CREDIT' || t.type === 'SESSION_REWARD').slice(0, 5)
+  const recentCredits = transactions.filter(t => t.type === 'CREDIT' || t.type === 'REWARD').slice(0, 5)
   const recentDebits = transactions.filter(t => t.type === 'DEBIT' || t.type === 'WITHDRAWAL').slice(0, 5)
 
   return (
@@ -75,12 +76,17 @@ export default function WalletPage() {
             <Skeleton className="h-12 w-40 bg-purple-400/50" />
           ) : (
             <div className="text-4xl font-bold">
-              {((balance?.balance || 0) / 100).toFixed(2)} {balance?.currency || 'EUR'}
+              {(wallet?.balance || 0).toFixed(2)} {wallet?.currency || 'EUR'}
             </div>
           )}
           <div className="mt-6 flex gap-3">
-            <Button variant="secondary" size="sm" disabled>
-              <ArrowUpIcon className="mr-2 h-4 w-4" />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setWithdrawalOpen(true)}
+              disabled={!wallet || wallet.balance < 10}
+            >
+              <ArrowUpRightIcon className="mr-2 h-4 w-4" />
               Retirer
             </Button>
             <Button variant="secondary" size="sm" disabled>
@@ -99,7 +105,7 @@ export default function WalletPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              +{(recentCredits.reduce((sum, t) => sum + t.amount, 0) / 100).toFixed(2)} €
+              +{recentCredits.reduce((sum, t) => sum + t.amount, 0).toFixed(2)} €
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {recentCredits.length} transaction(s) récente(s)
@@ -113,7 +119,7 @@ export default function WalletPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              -{(recentDebits.reduce((sum, t) => sum + t.amount, 0) / 100).toFixed(2)} €
+              -{recentDebits.reduce((sum, t) => sum + t.amount, 0).toFixed(2)} €
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {recentDebits.length} transaction(s) récente(s)
@@ -163,7 +169,7 @@ export default function WalletPage() {
           ) : (
             <div className="space-y-3">
               {transactions.map((transaction) => {
-                const isCredit = transaction.type === 'CREDIT' || transaction.type === 'SESSION_REWARD'
+                const isCredit = transaction.type === 'CREDIT' || transaction.type === 'REWARD'
 
                 return (
                   <div
@@ -180,22 +186,27 @@ export default function WalletPage() {
                       </div>
                       <div className="space-y-1">
                         <p className="font-medium">{transaction.description || "Transaction"}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(transaction.createdAt).toLocaleDateString("fr-FR", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit"
-                          })}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(transaction.createdAt).toLocaleDateString("fr-FR", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            })}
+                          </p>
+                          <Badge variant="outline" className="text-xs">
+                            {transaction.status}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className={`text-lg font-bold ${isCredit ? 'text-green-600' : 'text-red-600'}`}>
-                        {isCredit ? "+" : "-"}{(transaction.amount / 100).toFixed(2)} €
+                        {isCredit ? "+" : "-"}{transaction.amount.toFixed(2)} €
                       </p>
-                      <Badge variant="outline" className="mt-1">
+                      <Badge variant="outline" className="mt-1 text-xs">
                         {transaction.type}
                       </Badge>
                     </div>
@@ -206,6 +217,77 @@ export default function WalletPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Withdrawal History */}
+      {withdrawals.length > 0 && (
+        <Card className="mx-4 lg:mx-6">
+          <CardHeader>
+            <CardTitle>Historique des retraits</CardTitle>
+            <CardDescription>
+              Vos demandes de retrait et leur statut
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {withdrawals.map((withdrawal) => (
+                <div
+                  key={withdrawal.id}
+                  className="flex items-center justify-between p-4 rounded-lg border"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">
+                        {withdrawal.method === 'BANK_TRANSFER' ? 'Virement bancaire' : 'Carte cadeau'}
+                      </p>
+                      {withdrawal.status === 'COMPLETED' && (
+                        <Badge className="bg-green-100 text-green-800 border-green-200">Complété</Badge>
+                      )}
+                      {withdrawal.status === 'PENDING' && (
+                        <Badge className="bg-orange-100 text-orange-800 border-orange-200">En attente</Badge>
+                      )}
+                      {withdrawal.status === 'PROCESSING' && (
+                        <Badge className="bg-blue-100 text-blue-800 border-blue-200">En cours</Badge>
+                      )}
+                      {withdrawal.status === 'REJECTED' && (
+                        <Badge className="bg-red-100 text-red-800 border-red-200">Rejeté</Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Créé le {new Date(withdrawal.createdAt).toLocaleDateString("fr-FR", {
+                        day: "2-digit",
+                        month: "long",
+                        year: "numeric"
+                      })}
+                    </p>
+                    {withdrawal.processedAt && (
+                      <p className="text-sm text-muted-foreground">
+                        Traité le {new Date(withdrawal.processedAt).toLocaleDateString("fr-FR", {
+                          day: "2-digit",
+                          month: "long",
+                          year: "numeric"
+                        })}
+                      </p>
+                    )}
+                  </div>
+                  <p className="text-lg font-bold">
+                    {withdrawal.amount.toFixed(2)} €
+                  </p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Withdrawal Dialog */}
+      {wallet && (
+        <WithdrawalDialog
+          wallet={wallet}
+          open={withdrawalOpen}
+          onOpenChange={setWithdrawalOpen}
+          onSuccess={fetchWalletData}
+        />
+      )}
     </div>
   )
 }

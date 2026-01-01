@@ -445,6 +445,11 @@ function CampaignsPageContent() {
   }
 
   const handleViewDetails = async (campaign: Campaign) => {
+    // Redirect to the new detailed campaign page
+    router.push(`/dashboard/pro/campaigns/${campaign.id}`)
+  }
+
+  const handleViewDetailsOLD = async (campaign: Campaign) => {
     setViewingCampaign(campaign)
     setIsDetailsDialogOpen(true)
 

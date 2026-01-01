@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { api, Profile } from "@/lib/api"
+import { api, Profile, Session } from "@/lib/api"
 import { useErrorHandler } from "@/hooks/use-error-handler"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { KycVerificationBanner } from "@/components/kyc-verification-banner"
-import { UserIcon, MailIcon, PhoneIcon, CalendarIcon, ShieldCheckIcon, AlertCircleIcon, CheckCircle2Icon } from "lucide-react"
+import { UserIcon, MailIcon, PhoneIcon, CalendarIcon, ShieldCheckIcon, AlertCircleIcon, CheckCircle2Icon, TrendingUpIcon, AwardIcon, StarIcon, WalletIcon } from "lucide-react"
 import { toast } from "sonner"
 
 export default function ProfilePage() {
@@ -19,6 +19,8 @@ export default function ProfilePage() {
   const { handleErrorWithRetry } = useErrorHandler()
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [statsLoading, setStatsLoading] = useState(true)
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -35,6 +37,21 @@ export default function ProfilePage() {
     }
   }, [user])
 
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setStatsLoading(true)
+        const sessionsData = await api.getMySessions()
+        setSessions(sessionsData)
+      } catch (error) {
+        console.error("Failed to load stats:", error)
+      } finally {
+        setStatsLoading(false)
+      }
+    }
+    fetchStats()
+  }, [])
+
   const handleSave = async () => {
     try {
       setSaving(true)
@@ -48,6 +65,14 @@ export default function ProfilePage() {
       setSaving(false)
     }
   }
+
+  // Calculate statistics
+  const totalSessions = sessions.length
+  const completedSessions = sessions.filter(s => s.status === 'COMPLETED').length
+  const inProgressSessions = sessions.filter(s => ['ACCEPTED', 'PRICE_VALIDATED', 'IN_PROGRESS', 'SUBMITTED'].includes(s.status)).length
+  const totalEarnings = sessions
+    .filter(s => s.status === 'COMPLETED')
+    .reduce((sum, s) => sum + (s.campaign?.reward || 0), 0)
 
   return (
     <div className="flex flex-col gap-6 py-4 md:py-6">
@@ -70,6 +95,72 @@ export default function ProfilePage() {
           hideIfVerified={true}
           onStatusChange={() => window.location.reload()}
         />
+      </div>
+
+      {/* Statistics */}
+      <div className="grid gap-4 px-4 md:grid-cols-4 lg:px-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
+            <TrendingUpIcon className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <div className="text-2xl font-bold">{totalSessions}</div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Tests Complétés</CardTitle>
+            <CheckCircle2Icon className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-green-600">{completedSessions}</div>
+                {totalSessions > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {Math.round((completedSessions / totalSessions) * 100)}% de réussite
+                  </p>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">En Cours</CardTitle>
+            <CalendarIcon className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <div className="text-2xl font-bold text-blue-600">{inProgressSessions}</div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Gagné</CardTitle>
+            <WalletIcon className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <div className="text-2xl font-bold text-purple-600">{totalEarnings.toFixed(2)}€</div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Profile Information */}

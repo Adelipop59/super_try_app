@@ -2,37 +2,69 @@
 
 import { useEffect, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { api, Session } from "@/lib/api"
+import { useRouter } from "next/navigation"
+import { api, Session, SessionStatus } from "@/lib/api"
 import { useErrorHandler } from "@/hooks/use-error-handler"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { TestTubeIcon, ClockIcon, CheckCircle2Icon, PlayCircleIcon, AlertCircleIcon } from "lucide-react"
+import { StatusBadge } from "@/components/status-badge"
+import {
+  TestTubeIcon,
+  ClockIcon,
+  CheckCircle2Icon,
+  PlayCircleIcon,
+  AlertCircleIcon,
+  XCircleIcon,
+  AlertTriangleIcon,
+  PackageIcon,
+  ShoppingCartIcon,
+  FileTextIcon,
+  BanIcon,
+  EyeIcon,
+} from "lucide-react"
+import { ValidatePriceDialog } from "@/components/validate-price-dialog"
+import { SubmitPurchaseDialog } from "@/components/submit-purchase-dialog"
+import { SubmitTestDialog } from "@/components/submit-test-dialog"
+import { CancelSessionDialog } from "@/components/cancel-session-dialog"
+import { DisputeSessionDialog } from "@/components/dispute-session-dialog"
 
-const statusConfig = {
+const statusConfig: Record<SessionStatus, { label: string; icon: any; color: string }> = {
   PENDING: { label: "En attente", icon: ClockIcon, color: "bg-orange-100 text-orange-800" },
   ACCEPTED: { label: "Acceptée", icon: CheckCircle2Icon, color: "bg-green-100 text-green-800" },
+  REJECTED: { label: "Rejetée", icon: XCircleIcon, color: "bg-red-100 text-red-800" },
+  PRICE_VALIDATED: { label: "Prix validé", icon: CheckCircle2Icon, color: "bg-blue-100 text-blue-800" },
+  PURCHASE_SUBMITTED: { label: "Achat soumis", icon: ShoppingCartIcon, color: "bg-purple-100 text-purple-800" },
   IN_PROGRESS: { label: "En cours", icon: PlayCircleIcon, color: "bg-blue-100 text-blue-800" },
-  PURCHASE_SUBMITTED: { label: "Achat soumis", icon: PlayCircleIcon, color: "bg-blue-100 text-blue-800" },
+  SUBMITTED: { label: "Test soumis", icon: FileTextIcon, color: "bg-indigo-100 text-indigo-800" },
   COMPLETED: { label: "Terminée", icon: CheckCircle2Icon, color: "bg-green-100 text-green-800" },
-  REJECTED: { label: "Rejetée", icon: AlertCircleIcon, color: "bg-red-100 text-red-800" },
-  CANCELLED: { label: "Annulée", icon: AlertCircleIcon, color: "bg-gray-100 text-gray-800" },
+  CANCELLED: { label: "Annulée", icon: BanIcon, color: "bg-gray-100 text-gray-800" },
+  DISPUTED: { label: "Litige", icon: AlertTriangleIcon, color: "bg-yellow-100 text-yellow-800" },
 }
 
 export default function SessionsPage() {
   const { user } = useAuth()
+  const router = useRouter()
   const { handleErrorWithRetry } = useErrorHandler()
   const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>("all")
+
+  // Dialog states
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null)
+  const [validatePriceOpen, setValidatePriceOpen] = useState(false)
+  const [submitPurchaseOpen, setSubmitPurchaseOpen] = useState(false)
+  const [submitTestOpen, setSubmitTestOpen] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [disputeOpen, setDisputeOpen] = useState(false)
 
   const fetchSessions = async () => {
     if (!user) return
 
     try {
       setLoading(true)
-      const data = await api.getSessions()
+      const data = await api.getMySessions()
       setSessions(data)
     } catch (error) {
       handleErrorWithRetry(
@@ -52,7 +84,7 @@ export default function SessionsPage() {
 
   const filteredSessions = sessions.filter(session => {
     if (filter === "all") return true
-    if (filter === "active") return ["ACCEPTED", "IN_PROGRESS", "PURCHASE_SUBMITTED"].includes(session.status)
+    if (filter === "active") return ["ACCEPTED", "PRICE_VALIDATED", "PURCHASE_SUBMITTED", "IN_PROGRESS"].includes(session.status)
     if (filter === "completed") return session.status === "COMPLETED"
     if (filter === "pending") return session.status === "PENDING"
     return true
@@ -60,9 +92,54 @@ export default function SessionsPage() {
 
   const stats = {
     total: sessions.length,
-    active: sessions.filter(s => ["ACCEPTED", "IN_PROGRESS", "PURCHASE_SUBMITTED"].includes(s.status)).length,
+    active: sessions.filter(s => ["ACCEPTED", "PRICE_VALIDATED", "PURCHASE_SUBMITTED", "IN_PROGRESS"].includes(s.status)).length,
     completed: sessions.filter(s => s.status === "COMPLETED").length,
     pending: sessions.filter(s => s.status === "PENDING").length,
+  }
+
+  const getNextAction = (session: Session) => {
+    switch (session.status) {
+      case "ACCEPTED":
+        return {
+          label: "Valider le prix",
+          icon: PackageIcon,
+          onClick: () => {
+            setSelectedSession(session)
+            setValidatePriceOpen(true)
+          },
+          variant: "default" as const,
+        }
+      case "PRICE_VALIDATED":
+        return {
+          label: "Soumettre l'achat",
+          icon: ShoppingCartIcon,
+          onClick: () => {
+            setSelectedSession(session)
+            setSubmitPurchaseOpen(true)
+          },
+          variant: "default" as const,
+        }
+      case "IN_PROGRESS":
+        return {
+          label: "Soumettre le test",
+          icon: FileTextIcon,
+          onClick: () => {
+            setSelectedSession(session)
+            setSubmitTestOpen(true)
+          },
+          variant: "default" as const,
+        }
+      default:
+        return null
+    }
+  }
+
+  const canCancel = (status: SessionStatus) => {
+    return ["PENDING", "ACCEPTED", "IN_PROGRESS"].includes(status)
+  }
+
+  const canDispute = (status: SessionStatus) => {
+    return !["CANCELLED", "COMPLETED"].includes(status)
   }
 
   return (
@@ -183,28 +260,27 @@ export default function SessionsPage() {
           ) : (
             <div className="space-y-4">
               {filteredSessions.map((session) => {
-                const config = statusConfig[session.status as keyof typeof statusConfig] || statusConfig.PENDING
+                const config = statusConfig[session.status]
                 const StatusIcon = config.icon
+                const nextAction = getNextAction(session)
 
                 return (
                   <div
                     key={session.id}
                     className="rounded-lg border p-4 hover:bg-accent/50 transition-colors"
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between mb-3">
                       <div className="space-y-1">
                         <h3 className="font-semibold text-lg">
                           {session.campaign?.title || "Campagne sans titre"}
                         </h3>
+                        {session.campaign?.description && (
+                          <p className="text-sm text-muted-foreground">
+                            {session.campaign.description}
+                          </p>
+                        )}
                         <p className="text-sm text-muted-foreground">
                           Créée le {new Date(session.createdAt).toLocaleDateString("fr-FR", {
-                            day: "2-digit",
-                            month: "long",
-                            year: "numeric"
-                          })}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Mise à jour le {new Date(session.updatedAt).toLocaleDateString("fr-FR", {
                             day: "2-digit",
                             month: "long",
                             year: "numeric"
@@ -216,6 +292,67 @@ export default function SessionsPage() {
                         {config.label}
                       </Badge>
                     </div>
+
+                    {/* Session Details */}
+                    {session.productPrice && (
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Prix validé: {session.productPrice}€
+                      </p>
+                    )}
+                    {session.actualPrice && (
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Prix d'achat: {session.actualPrice}€
+                        {session.actualShipping && ` (+ ${session.actualShipping}€ de frais de port)`}
+                      </p>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => router.push(`/dashboard/tester/sessions/${session.id}`)}
+                      >
+                        <EyeIcon className="mr-2 h-4 w-4" />
+                        Voir les détails
+                      </Button>
+                      {nextAction && (
+                        <Button
+                          size="sm"
+                          variant={nextAction.variant}
+                          onClick={nextAction.onClick}
+                        >
+                          <nextAction.icon className="mr-2 h-4 w-4" />
+                          {nextAction.label}
+                        </Button>
+                      )}
+                      {canCancel(session.status) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedSession(session)
+                            setCancelOpen(true)
+                          }}
+                        >
+                          <BanIcon className="mr-2 h-4 w-4" />
+                          Annuler
+                        </Button>
+                      )}
+                      {canDispute(session.status) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedSession(session)
+                            setDisputeOpen(true)
+                          }}
+                        >
+                          <AlertTriangleIcon className="mr-2 h-4 w-4" />
+                          Litige
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 )
               })}
@@ -223,6 +360,42 @@ export default function SessionsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialogs */}
+      {selectedSession && (
+        <>
+          <ValidatePriceDialog
+            session={selectedSession}
+            open={validatePriceOpen}
+            onOpenChange={setValidatePriceOpen}
+            onSuccess={fetchSessions}
+          />
+          <SubmitPurchaseDialog
+            session={selectedSession}
+            open={submitPurchaseOpen}
+            onOpenChange={setSubmitPurchaseOpen}
+            onSuccess={fetchSessions}
+          />
+          <SubmitTestDialog
+            session={selectedSession}
+            open={submitTestOpen}
+            onOpenChange={setSubmitTestOpen}
+            onSuccess={fetchSessions}
+          />
+          <CancelSessionDialog
+            session={selectedSession}
+            open={cancelOpen}
+            onOpenChange={setCancelOpen}
+            onSuccess={fetchSessions}
+          />
+          <DisputeSessionDialog
+            session={selectedSession}
+            open={disputeOpen}
+            onOpenChange={setDisputeOpen}
+            onSuccess={fetchSessions}
+          />
+        </>
+      )}
     </div>
   )
 }
