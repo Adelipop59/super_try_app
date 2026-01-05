@@ -50,11 +50,16 @@ export function SubmitPurchaseDialog({ session, open, onOpenChange, onSuccess }:
       return
     }
 
+    if (!orderNumber.trim()) {
+      toast.error("Veuillez entrer le numéro de commande")
+      return
+    }
+
     try {
       setIsSubmitting(true)
       await api.submitPurchase(session.id, {
         purchaseProof: purchaseProof.trim(),
-        orderNumber: orderNumber.trim() || undefined,
+        orderNumber: orderNumber.trim(),
         purchaseDate,
         actualPrice: price,
         actualShipping: shipping,
@@ -106,17 +111,18 @@ export function SubmitPurchaseDialog({ session, open, onOpenChange, onSuccess }:
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="orderNumber">Numéro de commande (optionnel)</Label>
+              <Label htmlFor="orderNumber">Numéro de commande *</Label>
               <Input
                 id="orderNumber"
                 type="text"
                 placeholder="AMZ-12345-FR"
                 value={orderNumber}
                 onChange={(e) => setOrderNumber(e.target.value)}
+                required
                 disabled={isSubmitting}
               />
               <p className="text-xs text-muted-foreground">
-                Le numéro de votre commande Amazon ou autre
+                Le numéro de votre commande (requis pour validation)
               </p>
             </div>
 

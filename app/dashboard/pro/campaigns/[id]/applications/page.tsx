@@ -174,9 +174,9 @@ export default function CampaignApplicationsPage() {
                         <p className="font-medium">
                           {application.tester?.firstName} {application.tester?.lastName}
                         </p>
-                        {application.tester?.averageRating && (
+                        {(application.tester as any)?.averageRating && (
                           <Badge variant="outline" className="text-xs">
-                            ⭐ {Number(application.tester.averageRating).toFixed(1)}
+                            ⭐ {Number((application.tester as any).averageRating).toFixed(1)}
                           </Badge>
                         )}
                       </div>
@@ -192,9 +192,9 @@ export default function CampaignApplicationsPage() {
                           minute: "2-digit"
                         })}
                       </p>
-                      {application.applicationMessage && (
+                      {(application as any).applicationMessage && (
                         <p className="text-sm mt-2 line-clamp-2">
-                          "{application.applicationMessage}"
+                          "{(application as any).applicationMessage}"
                         </p>
                       )}
                     </div>

@@ -9,13 +9,13 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SessionTimeline } from "@/components/session-timeline"
 import { StatusBadge } from "@/components/status-badge"
-import { ValidatePriceDialog } from "@/components/validate-price-dialog"
 import { SubmitPurchaseDialog } from "@/components/submit-purchase-dialog"
 import { SubmitTestDialog } from "@/components/submit-test-dialog"
 import { CancelSessionDialog } from "@/components/cancel-session-dialog"
 import { DisputeSessionDialog } from "@/components/dispute-session-dialog"
 import { LeaveReviewDialog } from "@/components/leave-review-dialog"
 import { SessionChat } from "@/components/session-chat"
+import { TestProcedures } from "@/components/test-procedures"
 import {
   ArrowLeftIcon,
   PackageIcon,
@@ -37,7 +37,6 @@ export default function SessionDetailPage() {
   const [loading, setLoading] = useState(true)
 
   // Dialog states
-  const [validatePriceOpen, setValidatePriceOpen] = useState(false)
   const [submitPurchaseOpen, setSubmitPurchaseOpen] = useState(false)
   const [submitTestOpen, setSubmitTestOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
@@ -70,13 +69,6 @@ export default function SessionDetailPage() {
     if (!session) return null
 
     switch (session.status) {
-      case "ACCEPTED":
-        return {
-          label: "Valider le prix",
-          icon: PackageIcon,
-          onClick: () => setValidatePriceOpen(true),
-          variant: "default" as const,
-        }
       case "PRICE_VALIDATED":
         return {
           label: "Soumettre l'achat",
@@ -84,7 +76,7 @@ export default function SessionDetailPage() {
           onClick: () => setSubmitPurchaseOpen(true),
           variant: "default" as const,
         }
-      case "IN_PROGRESS":
+      case "PROCEDURES_COMPLETED":
         return {
           label: "Soumettre le test",
           icon: FileTextIcon,
@@ -98,7 +90,7 @@ export default function SessionDetailPage() {
 
   const canCancel = () => {
     if (!session) return false
-    return ["PENDING", "ACCEPTED", "IN_PROGRESS"].includes(session.status)
+    return ["PENDING", "ACCEPTED", "PRICE_VALIDATED", "PURCHASE_SUBMITTED", "PURCHASE_VALIDATED", "IN_PROGRESS", "PROCEDURES_COMPLETED"].includes(session.status)
   }
 
   const canDispute = () => {
@@ -290,6 +282,21 @@ export default function SessionDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Test Procedures - Show from ACCEPTED until PROCEDURES_COMPLETED */}
+          {(session.status === 'ACCEPTED' ||
+            session.status === 'PRICE_VALIDATED' ||
+            session.status === 'PURCHASE_SUBMITTED' ||
+            session.status === 'PURCHASE_VALIDATED' ||
+            session.status === 'IN_PROGRESS' ||
+            session.status === 'PROCEDURES_COMPLETED') &&
+            session.campaign?.procedures && (
+            <TestProcedures
+              procedures={session.campaign.procedures}
+              sessionId={session.id}
+              onStepComplete={fetchSession}
+            />
+          )}
+
           {/* Chat Section */}
           {session.seller && (
             <SessionChat sessionId={session.id} sellerId={session.seller.id} />
@@ -359,12 +366,6 @@ export default function SessionDetailPage() {
       {/* Dialogs */}
       {session && (
         <>
-          <ValidatePriceDialog
-            session={session}
-            open={validatePriceOpen}
-            onOpenChange={setValidatePriceOpen}
-            onSuccess={fetchSession}
-          />
           <SubmitPurchaseDialog
             session={session}
             open={submitPurchaseOpen}

@@ -185,7 +185,7 @@ export default function CampaignDetailPage() {
                   <p className="text-sm text-muted-foreground">Date de début</p>
                   <p className="font-medium flex items-center gap-2">
                     <CalendarIcon className="h-4 w-4" />
-                    {new Date(campaign.startDate).toLocaleDateString("fr-FR", {
+                    {campaign.startDate && new Date(campaign.startDate).toLocaleDateString("fr-FR", {
                       day: "2-digit",
                       month: "long",
                       year: "numeric"
@@ -210,7 +210,7 @@ export default function CampaignDetailPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Places disponibles</p>
                 <p className="font-medium">
-                  {campaign.availableSlots} / {campaign.totalSlots}
+                  {campaign.totalSlots - campaign.usedSlots} / {campaign.totalSlots}
                 </p>
               </div>
 
