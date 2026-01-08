@@ -51,8 +51,13 @@ export type SessionStatus =
   | 'REJECTED'
   | 'PRICE_VALIDATED'
   | 'PURCHASE_SUBMITTED'
+  | 'PURCHASE_VALIDATED'
   | 'IN_PROGRESS'
+  | 'PROCEDURES_COMPLETED'
   | 'SUBMITTED'
+  | 'UGC_REQUESTED'
+  | 'UGC_SUBMITTED'
+  | 'PENDING_CLOSURE'
   | 'COMPLETED'
   | 'CANCELLED'
   | 'DISPUTED'
@@ -76,6 +81,7 @@ export interface Session {
     id: string
     title: string
     description?: string
+    procedures?: Procedure[]
   }
   tester?: {
     id: string
@@ -132,6 +138,9 @@ export interface Step {
   order: number
   isRequired: boolean
   checklistItems?: string[]
+  // Price validation fields
+  minPrice?: number
+  maxPrice?: number
   createdAt: string
   updatedAt: string
 }
@@ -417,13 +426,14 @@ export interface ProOverviewStats {
 // Procedure interfaces
 export interface Procedure {
   id: string
-  campaignId: string
+  campaignId?: string
   title: string
-  description: string
+  description?: string
   order: number
   isRequired: boolean
-  createdAt: string
-  updatedAt: string
+  steps?: Array<Step & { progress?: StepProgress }>
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface CreateProcedureData {
@@ -1355,6 +1365,12 @@ class ApiClient {
     return this.request<StepProgress>(`/sessions/${sessionId}/steps/${stepId}/complete`, {
       method: 'POST',
       body: JSON.stringify(data),
+    })
+  }
+
+  async deleteStepProgress(sessionId: string, stepId: string): Promise<void> {
+    return this.request<void>(`/sessions/${sessionId}/steps/${stepId}/progress`, {
+      method: 'DELETE',
     })
   }
 

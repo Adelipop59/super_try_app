@@ -14,43 +14,85 @@ const timelineSteps: TimelineStep[] = [
     status: "PENDING",
     label: "Candidature envoyée",
     labelPro: "Candidature reçue",
-    description: "En attente de validation du vendeur",
-    descriptionPro: "En attente de votre acceptation",
+    description: "En attente de validation",
+    descriptionPro: "En attente de votre validation",
   },
   {
     status: "ACCEPTED",
-    label: "Candidature acceptée",
-    labelPro: "Candidature acceptée",
-    description: "Vous pouvez maintenant valider le prix",
-    descriptionPro: "Le testeur doit valider le prix",
+    label: "Procédures du test",
+    labelPro: "Procédures en cours",
+    description: "Validez toutes les étapes des procédures",
+    descriptionPro: "Le testeur complète les procédures",
   },
   {
     status: "PRICE_VALIDATED",
-    label: "Prix validé",
-    labelPro: "Prix validé par le testeur",
-    description: "Achetez le produit et soumettez la preuve",
-    descriptionPro: "En attente de l'achat du produit",
+    label: "Commande du produit",
+    labelPro: "Commande en attente",
+    description: "Commandez et envoyez le n° de commande",
+    descriptionPro: "En attente de la commande",
+  },
+  {
+    status: "PURCHASE_SUBMITTED",
+    label: "Validation commande",
+    labelPro: "Commande à valider",
+    description: "En attente de validation",
+    descriptionPro: "Validez la commande",
+  },
+  {
+    status: "PURCHASE_VALIDATED",
+    label: "Test en cours",
+    labelPro: "Test en cours",
+    description: "Commande validée, testez le produit",
+    descriptionPro: "Testeur peut commencer le test",
   },
   {
     status: "IN_PROGRESS",
     label: "Test en cours",
     labelPro: "Test en cours",
-    description: "Complétez les étapes du test",
-    descriptionPro: "Le testeur effectue le test",
+    description: "Complétez les procédures du test",
+    descriptionPro: "Testeur complète les procédures",
+  },
+  {
+    status: "PROCEDURES_COMPLETED",
+    label: "Procédures complétées",
+    labelPro: "Procédures complétées",
+    description: "Soumettez votre test",
+    descriptionPro: "En attente de soumission du test",
   },
   {
     status: "SUBMITTED",
     label: "Test soumis",
-    labelPro: "Test soumis",
+    labelPro: "Test à valider",
     description: "En attente de validation du vendeur",
-    descriptionPro: "À valider et payer",
+    descriptionPro: "Validez le test du testeur",
+  },
+  {
+    status: "UGC_REQUESTED",
+    label: "Contenu demandé",
+    labelPro: "Contenu demandé",
+    description: "Fournissez le contenu demandé",
+    descriptionPro: "En attente du contenu",
+  },
+  {
+    status: "UGC_SUBMITTED",
+    label: "Contenu demandé",
+    labelPro: "Contenu demandé",
+    description: "Fournissez le contenu demandé",
+    descriptionPro: "En attente du contenu",
+  },
+  {
+    status: "PENDING_CLOSURE",
+    label: "Terminé",
+    labelPro: "Terminé",
+    description: "Session terminée",
+    descriptionPro: "Session terminée",
   },
   {
     status: "COMPLETED",
     label: "Test validé",
-    labelPro: "Test validé et payé",
-    description: "Récompense versée dans votre wallet",
-    descriptionPro: "Test validé, testeur payé",
+    labelPro: "Test validé",
+    description: "Récompense versée",
+    descriptionPro: "Testeur payé",
   },
 ]
 
@@ -116,20 +158,26 @@ export function SessionTimeline({ currentStatus, className = "", isPro = false }
     )
   }
 
-  // Map PURCHASE_SUBMITTED to IN_PROGRESS for timeline display
-  const displayStatus = currentStatus === "PURCHASE_SUBMITTED" ? "IN_PROGRESS" : currentStatus
+  // Filter unique steps by label to avoid duplicates
+  const uniqueSteps = timelineSteps.filter((step, index, self) =>
+    index === self.findIndex((s) => s.label === step.label)
+  )
 
-  const currentStepIndex = timelineSteps.findIndex((step) => step.status === displayStatus)
+  // Find current step - check if any step in the original list with same label matches current status
+  const currentStepIndex = uniqueSteps.findIndex((step) => {
+    const allStepsWithSameLabel = timelineSteps.filter(s => s.label === step.label)
+    return allStepsWithSameLabel.some(s => s.status === currentStatus)
+  })
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {timelineSteps.map((step, index) => {
+      {uniqueSteps.map((step, index) => {
         const isCompleted = index < currentStepIndex
         const isCurrent = index === currentStepIndex
         const isFuture = index > currentStepIndex
 
         return (
-          <div key={step.status} className="flex gap-4">
+          <div key={`${step.status}-${index}`} className="flex gap-4">
             {/* Icon */}
             <div className="relative flex flex-col items-center">
               <div
