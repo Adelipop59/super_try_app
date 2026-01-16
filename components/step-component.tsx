@@ -6,7 +6,6 @@ import { VideoStep } from "./steps/video-step"
 import { ChecklistStep } from "./steps/checklist-step"
 import { RatingStep } from "./steps/rating-step"
 import { TextStep } from "./steps/text-step"
-import { PriceValidationStep } from "./steps/price-validation-step"
 import { Badge } from "@/components/ui/badge"
 
 interface StepComponentProps {
@@ -67,17 +66,6 @@ export function StepComponent({ step, progress, sessionId, onComplete, canComple
       case "RATING":
         return (
           <RatingStep
-            step={step}
-            progress={progress}
-            sessionId={sessionId}
-            onComplete={onComplete}
-            canComplete={canComplete}
-          />
-        )
-
-      case "PRICE_VALIDATION":
-        return (
-          <PriceValidationStep
             step={step}
             progress={progress}
             sessionId={sessionId}

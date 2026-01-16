@@ -16,6 +16,8 @@ import { DisputeSessionDialog } from "@/components/dispute-session-dialog"
 import { LeaveReviewDialog } from "@/components/leave-review-dialog"
 import { SessionChat } from "@/components/session-chat"
 import { TestProcedures } from "@/components/test-procedures"
+import { ValidatePriceStep } from "@/components/validate-price-step"
+import { shouldShowProcedures } from "@/lib/session-helpers"
 import {
   ArrowLeftIcon,
   PackageIcon,
@@ -71,12 +73,12 @@ export default function SessionDetailPage() {
     switch (session.status) {
       case "PRICE_VALIDATED":
         return {
-          label: "Soumettre l'achat",
+          label: "Soumettre la commande",
           icon: ShoppingCartIcon,
           onClick: () => setSubmitPurchaseOpen(true),
           variant: "default" as const,
         }
-      case "PROCEDURES_COMPLETED":
+      case "PURCHASE_VALIDATED":
         return {
           label: "Soumettre le test",
           icon: FileTextIcon,
@@ -175,7 +177,7 @@ export default function SessionDetailPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-3">
-                {nextAction && (
+                {nextAction && nextAction.icon && (
                   <Button onClick={nextAction.onClick} variant={nextAction.variant}>
                     <nextAction.icon className="mr-2 h-4 w-4" />
                     {nextAction.label}
@@ -282,13 +284,28 @@ export default function SessionDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Price Validation Step - Show only when PROCEDURES_COMPLETED */}
+          {session.status === 'PROCEDURES_COMPLETED' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Validation du prix</CardTitle>
+                <CardDescription>
+                  Vérifiez que le produit est disponible et validez son prix avant de passer commande
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ValidatePriceStep
+                  session={session}
+                  minPrice={session.campaign?.offers?.[0]?.priceRangeMin}
+                  maxPrice={session.campaign?.offers?.[0]?.priceRangeMax}
+                  onComplete={fetchSession}
+                />
+              </CardContent>
+            </Card>
+          )}
+
           {/* Test Procedures - Show from ACCEPTED until PROCEDURES_COMPLETED */}
-          {(session.status === 'ACCEPTED' ||
-            session.status === 'PRICE_VALIDATED' ||
-            session.status === 'PURCHASE_SUBMITTED' ||
-            session.status === 'PURCHASE_VALIDATED' ||
-            session.status === 'IN_PROGRESS' ||
-            session.status === 'PROCEDURES_COMPLETED') &&
+          {shouldShowProcedures(session.status) &&
             session.campaign?.procedures && (
             <TestProcedures
               procedures={session.campaign.procedures}
