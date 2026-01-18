@@ -18,7 +18,6 @@ interface SubmitTestDialogProps {
 
 export function SubmitTestDialog({ session, open, onOpenChange, onSuccess }: SubmitTestDialogProps) {
   const [testData, setTestData] = useState("")
-  const [feedback, setFeedback] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,14 +40,12 @@ export function SubmitTestDialog({ session, open, onOpenChange, onSuccess }: Sub
       }
 
       await api.submitTest(session.id, {
-        testData: parsedTestData,
-        feedback: feedback.trim() || undefined,
+        submissionData: parsedTestData,
       })
       toast.success("Test soumis avec succès !")
       onOpenChange(false)
       onSuccess()
       setTestData("")
-      setFeedback("")
     } catch (error: any) {
       toast.error(error.message || "Impossible de soumettre le test")
     } finally {
@@ -80,26 +77,11 @@ export function SubmitTestDialog({ session, open, onOpenChange, onSuccess }: Sub
                 onChange={(e) => setTestData(e.target.value)}
                 required
                 disabled={isSubmitting}
-                rows={8}
+                rows={12}
                 className="font-mono text-sm"
               />
               <p className="text-xs text-muted-foreground">
                 Vous pouvez fournir un JSON structuré ou du texte libre avec vos observations
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="feedback">Feedback (optionnel)</Label>
-              <Textarea
-                id="feedback"
-                placeholder="Partagez votre expérience globale avec le produit..."
-                value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
-                disabled={isSubmitting}
-                rows={4}
-              />
-              <p className="text-xs text-muted-foreground">
-                Commentaires additionnels sur votre expérience
               </p>
             </div>
           </div>

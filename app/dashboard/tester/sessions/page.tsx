@@ -34,10 +34,15 @@ const statusConfig: Record<SessionStatus, { label: string; icon: any; color: str
   PENDING: { label: "En attente", icon: ClockIcon, color: "bg-orange-100 text-orange-800" },
   ACCEPTED: { label: "Acceptée", icon: CheckCircle2Icon, color: "bg-green-100 text-green-800" },
   REJECTED: { label: "Rejetée", icon: XCircleIcon, color: "bg-red-100 text-red-800" },
+  IN_PROGRESS: { label: "En cours", icon: PlayCircleIcon, color: "bg-blue-100 text-blue-800" },
+  PROCEDURES_COMPLETED: { label: "Procédures terminées", icon: CheckCircle2Icon, color: "bg-blue-100 text-blue-800" },
   PRICE_VALIDATED: { label: "Prix validé", icon: CheckCircle2Icon, color: "bg-blue-100 text-blue-800" },
   PURCHASE_SUBMITTED: { label: "Achat soumis", icon: ShoppingCartIcon, color: "bg-purple-100 text-purple-800" },
-  IN_PROGRESS: { label: "En cours", icon: PlayCircleIcon, color: "bg-blue-100 text-blue-800" },
+  PURCHASE_VALIDATED: { label: "Achat validé", icon: CheckCircle2Icon, color: "bg-purple-100 text-purple-800" },
   SUBMITTED: { label: "Test soumis", icon: FileTextIcon, color: "bg-indigo-100 text-indigo-800" },
+  UGC_REQUESTED: { label: "Contenu demandé", icon: AlertCircleIcon, color: "bg-yellow-100 text-yellow-800" },
+  UGC_SUBMITTED: { label: "Contenu soumis", icon: FileTextIcon, color: "bg-yellow-100 text-yellow-800" },
+  PENDING_CLOSURE: { label: "En attente de clôture", icon: ClockIcon, color: "bg-gray-100 text-gray-800" },
   COMPLETED: { label: "Terminée", icon: CheckCircle2Icon, color: "bg-green-100 text-green-800" },
   CANCELLED: { label: "Annulée", icon: BanIcon, color: "bg-gray-100 text-gray-800" },
   DISPUTED: { label: "Litige", icon: AlertTriangleIcon, color: "bg-yellow-100 text-yellow-800" },
@@ -84,7 +89,7 @@ export default function SessionsPage() {
 
   const filteredSessions = sessions.filter(session => {
     if (filter === "all") return true
-    if (filter === "active") return ["ACCEPTED", "PRICE_VALIDATED", "PURCHASE_SUBMITTED", "IN_PROGRESS"].includes(session.status)
+    if (filter === "active") return ["ACCEPTED", "IN_PROGRESS", "PROCEDURES_COMPLETED", "PRICE_VALIDATED", "PURCHASE_SUBMITTED", "PURCHASE_VALIDATED"].includes(session.status)
     if (filter === "completed") return session.status === "COMPLETED"
     if (filter === "pending") return session.status === "PENDING"
     return true
@@ -92,7 +97,7 @@ export default function SessionsPage() {
 
   const stats = {
     total: sessions.length,
-    active: sessions.filter(s => ["ACCEPTED", "PRICE_VALIDATED", "PURCHASE_SUBMITTED", "IN_PROGRESS"].includes(s.status)).length,
+    active: sessions.filter(s => ["ACCEPTED", "IN_PROGRESS", "PROCEDURES_COMPLETED", "PRICE_VALIDATED", "PURCHASE_SUBMITTED", "PURCHASE_VALIDATED"].includes(s.status)).length,
     completed: sessions.filter(s => s.status === "COMPLETED").length,
     pending: sessions.filter(s => s.status === "PENDING").length,
   }

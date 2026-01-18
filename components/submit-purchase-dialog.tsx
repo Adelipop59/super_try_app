@@ -17,18 +17,17 @@ interface SubmitPurchaseDialogProps {
 }
 
 export function SubmitPurchaseDialog({ session, open, onOpenChange, onSuccess }: SubmitPurchaseDialogProps) {
-  const [purchaseProof, setPurchaseProof] = useState("")
+  const [purchaseProofUrl, setPurchaseProofUrl] = useState("")
   const [orderNumber, setOrderNumber] = useState("")
-  const [purchaseDate, setPurchaseDate] = useState("")
-  const [actualPrice, setActualPrice] = useState("")
-  const [actualShipping, setActualShipping] = useState("")
+  const [productPrice, setProductPrice] = useState("")
+  const [shippingCost, setShippingCost] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const price = parseFloat(actualPrice)
-    const shipping = parseFloat(actualShipping)
+    const price = parseFloat(productPrice)
+    const shipping = parseFloat(shippingCost)
 
     if (isNaN(price) || price <= 0) {
       toast.error("Veuillez entrer un prix valide")
@@ -40,13 +39,8 @@ export function SubmitPurchaseDialog({ session, open, onOpenChange, onSuccess }:
       return
     }
 
-    if (!purchaseProof.trim()) {
+    if (!purchaseProofUrl.trim()) {
       toast.error("Veuillez fournir une preuve d'achat (URL)")
-      return
-    }
-
-    if (!purchaseDate) {
-      toast.error("Veuillez indiquer la date d'achat")
       return
     }
 
@@ -58,20 +52,18 @@ export function SubmitPurchaseDialog({ session, open, onOpenChange, onSuccess }:
     try {
       setIsSubmitting(true)
       await api.submitPurchase(session.id, {
-        purchaseProof: purchaseProof.trim(),
+        purchaseProofUrl: purchaseProofUrl.trim(),
         orderNumber: orderNumber.trim(),
-        purchaseDate,
-        actualPrice: price,
-        actualShipping: shipping,
+        productPrice: price,
+        shippingCost: shipping,
       })
       toast.success("Achat soumis avec succès !")
       onOpenChange(false)
       onSuccess()
-      setPurchaseProof("")
+      setPurchaseProofUrl("")
       setOrderNumber("")
-      setPurchaseDate("")
-      setActualPrice("")
-      setActualShipping("")
+      setProductPrice("")
+      setShippingCost("")
     } catch (error: any) {
       toast.error(error.message || "Impossible de soumettre l'achat")
     } finally {
@@ -95,13 +87,13 @@ export function SubmitPurchaseDialog({ session, open, onOpenChange, onSuccess }:
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="purchaseProof">Preuve d'achat (URL) *</Label>
+              <Label htmlFor="purchaseProofUrl">Preuve d'achat (URL) *</Label>
               <Input
-                id="purchaseProof"
+                id="purchaseProofUrl"
                 type="url"
                 placeholder="https://..."
-                value={purchaseProof}
-                onChange={(e) => setPurchaseProof(e.target.value)}
+                value={purchaseProofUrl}
+                onChange={(e) => setPurchaseProofUrl(e.target.value)}
                 required
                 disabled={isSubmitting}
               />
@@ -126,44 +118,32 @@ export function SubmitPurchaseDialog({ session, open, onOpenChange, onSuccess }:
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="purchaseDate">Date d'achat *</Label>
-              <Input
-                id="purchaseDate"
-                type="datetime-local"
-                value={purchaseDate}
-                onChange={(e) => setPurchaseDate(e.target.value)}
-                required
-                disabled={isSubmitting}
-              />
-            </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="actualPrice">Prix payé (€) *</Label>
+                <Label htmlFor="productPrice">Prix payé (€) *</Label>
                 <Input
-                  id="actualPrice"
+                  id="productPrice"
                   type="number"
                   step="0.01"
                   min="0"
                   placeholder="99.99"
-                  value={actualPrice}
-                  onChange={(e) => setActualPrice(e.target.value)}
+                  value={productPrice}
+                  onChange={(e) => setProductPrice(e.target.value)}
                   required
                   disabled={isSubmitting}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="actualShipping">Frais de port (€) *</Label>
+                <Label htmlFor="shippingCost">Frais de port (€) *</Label>
                 <Input
-                  id="actualShipping"
+                  id="shippingCost"
                   type="number"
                   step="0.01"
                   min="0"
                   placeholder="5.99"
-                  value={actualShipping}
-                  onChange={(e) => setActualShipping(e.target.value)}
+                  value={shippingCost}
+                  onChange={(e) => setShippingCost(e.target.value)}
                   required
                   disabled={isSubmitting}
                 />

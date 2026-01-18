@@ -10,6 +10,7 @@ import {
   FileTextIcon,
   BanIcon,
   AlertTriangleIcon,
+  AlertCircleIcon,
   LucideIcon,
 } from "lucide-react"
 
@@ -35,6 +36,16 @@ const statusConfig: Record<SessionStatus, StatusConfig> = {
     icon: XCircleIcon,
     className: "bg-red-100 text-red-800 border-red-200",
   },
+  IN_PROGRESS: {
+    label: "En cours",
+    icon: PlayCircleIcon,
+    className: "bg-blue-100 text-blue-800 border-blue-200",
+  },
+  PROCEDURES_COMPLETED: {
+    label: "Procédures terminées",
+    icon: CheckCircle2Icon,
+    className: "bg-blue-100 text-blue-800 border-blue-200",
+  },
   PRICE_VALIDATED: {
     label: "Prix validé",
     icon: PackageIcon,
@@ -45,15 +56,30 @@ const statusConfig: Record<SessionStatus, StatusConfig> = {
     icon: ShoppingCartIcon,
     className: "bg-purple-100 text-purple-800 border-purple-200",
   },
-  IN_PROGRESS: {
-    label: "En cours",
-    icon: PlayCircleIcon,
-    className: "bg-blue-100 text-blue-800 border-blue-200",
+  PURCHASE_VALIDATED: {
+    label: "Achat validé",
+    icon: CheckCircle2Icon,
+    className: "bg-purple-100 text-purple-800 border-purple-200",
   },
   SUBMITTED: {
     label: "Test soumis",
     icon: FileTextIcon,
     className: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  },
+  UGC_REQUESTED: {
+    label: "Contenu demandé",
+    icon: AlertCircleIcon,
+    className: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  },
+  UGC_SUBMITTED: {
+    label: "Contenu soumis",
+    icon: FileTextIcon,
+    className: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  },
+  PENDING_CLOSURE: {
+    label: "En attente de clôture",
+    icon: ClockIcon,
+    className: "bg-gray-100 text-gray-800 border-gray-200",
   },
   COMPLETED: {
     label: "Terminée",

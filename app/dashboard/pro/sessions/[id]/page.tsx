@@ -12,6 +12,8 @@ import { SessionTimeline } from "@/components/session-timeline"
 import { SessionChat } from "@/components/session-chat"
 import { AcceptRejectDialog } from "@/components/accept-reject-dialog"
 import { ValidateTestDialog } from "@/components/validate-test-dialog"
+import { ValidatePurchaseDialog } from "@/components/validate-purchase-dialog"
+import { CloseSessionDialog } from "@/components/close-session-dialog"
 import {
   ArrowLeftIcon,
   UserIcon,
@@ -35,6 +37,8 @@ export default function ProSessionDetailPage() {
   const [acceptRejectOpen, setAcceptRejectOpen] = useState(false)
   const [acceptRejectAction, setAcceptRejectAction] = useState<'accept' | 'reject'>('accept')
   const [validateOpen, setValidateOpen] = useState(false)
+  const [validatePurchaseOpen, setValidatePurchaseOpen] = useState(false)
+  const [closeSessionOpen, setCloseSessionOpen] = useState(false)
 
   const fetchSession = async () => {
     if (!params.id) return
@@ -124,7 +128,7 @@ export default function ProSessionDetailPage() {
           </Card>
 
           {/* Actions */}
-          {(session.status === 'PENDING' || session.status === 'SUBMITTED') && (
+          {(session.status === 'PENDING' || session.status === 'PURCHASE_SUBMITTED' || session.status === 'SUBMITTED') && (
             <Card>
               <CardHeader>
                 <CardTitle>Actions</CardTitle>
@@ -159,10 +163,30 @@ export default function ProSessionDetailPage() {
                   </>
                 )}
 
+                {session.status === 'PURCHASE_SUBMITTED' && (
+                  <Button onClick={() => setValidatePurchaseOpen(true)}>
+                    <CheckCircle2Icon className="mr-2 h-4 w-4" />
+                    Valider l'achat
+                  </Button>
+                )}
+
                 {session.status === 'SUBMITTED' && (
                   <Button onClick={() => setValidateOpen(true)}>
                     <CheckCircle2Icon className="mr-2 h-4 w-4" />
                     Valider le test
+                  </Button>
+                )}
+
+                {/* Terminer la session (disponible après validation du test ou pour certaines sessions avancées) */}
+                {(session.status === 'PENDING_CLOSURE' ||
+                  session.status === 'UGC_SUBMITTED' ||
+                  session.status === 'SUBMITTED') && (
+                  <Button
+                    onClick={() => setCloseSessionOpen(true)}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <CheckCircle2Icon className="mr-2 h-4 w-4" />
+                    Terminer la session
                   </Button>
                 )}
               </CardContent>
@@ -217,12 +241,32 @@ export default function ProSessionDetailPage() {
                 </div>
               )}
 
-              {session.actualPrice && (
+              {session.orderNumber && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <p className="text-sm text-muted-foreground mb-1">Numéro de commande</p>
+                  <p className="font-mono font-bold text-blue-900">{session.orderNumber}</p>
+                </div>
+              )}
+
+              {session.actualPrice !== undefined && (
                 <div>
                   <p className="text-sm text-muted-foreground">Prix d'achat</p>
-                  <p className="font-medium">
-                    {session.actualPrice}€
-                    {session.actualShipping && ` (+ ${session.actualShipping}€ de frais de port)`}
+                  <p className="font-medium">{session.actualPrice.toFixed(2)}€</p>
+                </div>
+              )}
+
+              {session.actualShipping !== undefined && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Frais de livraison</p>
+                  <p className="font-medium">{session.actualShipping.toFixed(2)}€</p>
+                </div>
+              )}
+
+              {(session.actualPrice !== undefined && session.actualShipping !== undefined) && (
+                <div className="rounded-lg border bg-primary/10 p-3">
+                  <p className="text-sm text-muted-foreground mb-1">Total payé</p>
+                  <p className="font-bold text-xl">
+                    {(session.actualPrice + session.actualShipping).toFixed(2)}€
                   </p>
                 </div>
               )}
@@ -362,10 +406,22 @@ export default function ProSessionDetailPage() {
             onOpenChange={setAcceptRejectOpen}
             onSuccess={fetchSession}
           />
+          <ValidatePurchaseDialog
+            session={session}
+            open={validatePurchaseOpen}
+            onOpenChange={setValidatePurchaseOpen}
+            onSuccess={fetchSession}
+          />
           <ValidateTestDialog
             session={session}
             open={validateOpen}
             onOpenChange={setValidateOpen}
+            onSuccess={fetchSession}
+          />
+          <CloseSessionDialog
+            session={session}
+            open={closeSessionOpen}
+            onOpenChange={setCloseSessionOpen}
             onSuccess={fetchSession}
           />
         </>

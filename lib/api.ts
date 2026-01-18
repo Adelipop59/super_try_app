@@ -70,6 +70,7 @@ export interface Session {
   productPrice?: number
   purchaseProof?: string
   purchaseDate?: string
+  orderNumber?: string
   actualPrice?: number
   actualShipping?: number
   testData?: Record<string, any>
@@ -113,8 +114,7 @@ export interface SubmitPurchaseData {
 }
 
 export interface SubmitTestData {
-  testData: Record<string, any>
-  feedback?: string
+  submissionData: Record<string, any>
 }
 
 export interface CancelSessionData {
@@ -124,6 +124,74 @@ export interface CancelSessionData {
 export interface DisputeSessionData {
   reason: string
   description: string
+}
+
+// ChatOrders interfaces
+export type ChatOrderType = 'UGC_REQUEST' | 'PHOTO_REQUEST' | 'TIP'
+
+export type ChatOrderStatus =
+  | 'PENDING'
+  | 'ACCEPTED'
+  | 'DELIVERED'
+  | 'COMPLETED'
+  | 'REJECTED'
+  | 'CANCELLED'
+  | 'DISPUTED'
+  | 'REFUNDED'
+
+export interface ChatOrder {
+  id: string
+  sessionId: string
+  buyerId: string
+  sellerId: string
+  type: ChatOrderType
+  status: ChatOrderStatus
+  amount: number
+  description: string
+  deliveryDeadline?: string | null
+  deliveryProof?: any
+  deliveredAt?: string | null
+  validatedAt?: string | null
+  validatedBy?: string | null
+  rejectedAt?: string | null
+  rejectionReason?: string | null
+  cancelledAt?: string | null
+  disputedAt?: string | null
+  disputeReason?: string | null
+  disputeResolvedAt?: string | null
+  disputeResolution?: string | null
+  disputeResolvedBy?: string | null
+  metadata?: any
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateChatOrderData {
+  type: ChatOrderType
+  amount: number
+  description: string
+  deliveryDeadline?: string
+  metadata?: Record<string, any>
+}
+
+export interface RejectOrderData {
+  rejectionReason: string
+}
+
+export interface DeliverOrderData {
+  deliveryProof: {
+    files: Array<{
+      url: string
+      filename: string
+      size: number
+      type: string
+    }>
+    notes?: string
+  }
+}
+
+export interface DisputeOrderData {
+  disputeReason: string
 }
 
 // Step interfaces (for test procedures)
@@ -1494,6 +1562,88 @@ class ApiClient {
     return this.request<Session>(`/sessions/${sessionId}/rate`, {
       method: 'POST',
       body: JSON.stringify({ rating, ratingComment })
+    })
+  }
+
+  async validatePurchase(sessionId: string, comment?: string): Promise<Session> {
+    return this.request<Session>(`/sessions/${sessionId}/validate-purchase`, {
+      method: 'PATCH',
+      body: JSON.stringify({ comment })
+    })
+  }
+
+  async rejectPurchase(sessionId: string, rejectionReason: string): Promise<Session> {
+    return this.request<Session>(`/sessions/${sessionId}/reject-purchase`, {
+      method: 'PATCH',
+      body: JSON.stringify({ rejectionReason })
+    })
+  }
+
+  // ChatOrders endpoints
+  async createChatOrder(sessionId: string, data: CreateChatOrderData): Promise<ChatOrder> {
+    return this.request<ChatOrder>(`/chat-orders/sessions/${sessionId}/orders`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async getSessionOrders(sessionId: string): Promise<ChatOrder[]> {
+    return this.request<ChatOrder[]>(`/chat-orders/sessions/${sessionId}/orders`)
+  }
+
+  async getChatOrder(orderId: string): Promise<ChatOrder> {
+    return this.request<ChatOrder>(`/chat-orders/orders/${orderId}`)
+  }
+
+  async acceptChatOrder(orderId: string): Promise<ChatOrder> {
+    return this.request<ChatOrder>(`/chat-orders/orders/${orderId}/accept`, {
+      method: 'POST'
+    })
+  }
+
+  async rejectChatOrder(orderId: string, data: RejectOrderData): Promise<ChatOrder> {
+    return this.request<ChatOrder>(`/chat-orders/orders/${orderId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async cancelChatOrder(orderId: string): Promise<ChatOrder> {
+    return this.request<ChatOrder>(`/chat-orders/orders/${orderId}/cancel`, {
+      method: 'POST'
+    })
+  }
+
+  async deliverChatOrder(orderId: string, data: DeliverOrderData): Promise<ChatOrder> {
+    return this.request<ChatOrder>(`/chat-orders/orders/${orderId}/deliver`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async validateChatOrderDelivery(orderId: string): Promise<ChatOrder> {
+    return this.request<ChatOrder>(`/chat-orders/orders/${orderId}/validate`, {
+      method: 'POST'
+    })
+  }
+
+  // Alias pour validateChatOrderDelivery (plus court)
+  async validateChatOrder(orderId: string): Promise<ChatOrder> {
+    return this.validateChatOrderDelivery(orderId)
+  }
+
+  async disputeChatOrder(orderId: string, data: DisputeOrderData): Promise<ChatOrder> {
+    return this.request<ChatOrder>(`/chat-orders/orders/${orderId}/dispute`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  // Close session (PRO only)
+  async closeSession(sessionId: string, closingMessage?: string): Promise<Session> {
+    return this.request<Session>(`/sessions/${sessionId}/close`, {
+      method: 'PATCH',
+      body: JSON.stringify({ closingMessage })
     })
   }
 }
