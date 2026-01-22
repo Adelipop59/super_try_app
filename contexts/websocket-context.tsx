@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from "react"
 import { io, Socket } from "socket.io-client"
 import { useAuth } from "./auth-context"
+import { api } from "@/lib/api"
 
 interface WebSocketContextType {
   socket: Socket | null
@@ -46,53 +47,64 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       return
     }
 
-    // Récupérer le token depuis le localStorage (utilise 'auth_token' comme dans api.ts)
-    const token = localStorage.getItem("auth_token")
-    if (!token) {
-      console.warn("⚠️ No auth_token found in localStorage")
-      return
+    // Fetch a temporary token for WebSocket authentication
+    const connectWebSocket = async () => {
+      try {
+        console.log("🔌 Fetching WebSocket token...")
+        const wsTokenData = await api.request<{ token: string; userId: string; expiresIn: number }>('/auth/ws-token', {
+          method: 'GET',
+        })
+
+        if (!wsTokenData.token) {
+          console.error("⚠️ No WebSocket token received")
+          return
+        }
+
+        // Créer la connexion WebSocket
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
+        const WS_URL = API_URL.replace("/api/v1", "")
+
+        console.log("🔌 Connecting to WebSocket:", `${WS_URL}/messages`)
+
+        const newSocket = io(`${WS_URL}/messages`, {
+          auth: {
+            token: wsTokenData.token,
+          },
+          transports: ["websocket", "polling"],
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
+          reconnectionAttempts: 5,
+        })
+
+        newSocket.on("connect", () => {
+          console.log("✅ WebSocket connected:", newSocket.id)
+          setIsConnected(true)
+        })
+
+        newSocket.on("disconnect", (reason) => {
+          console.log("❌ WebSocket disconnected:", reason)
+          setIsConnected(false)
+        })
+
+        newSocket.on("connect_error", (error) => {
+          console.error("❌ WebSocket connection error:", error.message)
+          console.error("Error details:", error)
+          setIsConnected(false)
+        })
+
+        newSocket.on("error", (error) => {
+          console.error("❌ WebSocket error:", error)
+        })
+
+        socketRef.current = newSocket
+        setSocket(newSocket)
+      } catch (error) {
+        console.error("⚠️ Failed to fetch WebSocket token:", error)
+      }
     }
 
-    // Créer la connexion WebSocket
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
-    const WS_URL = API_URL.replace("/api/v1", "")
-
-    console.log("🔌 Connecting to WebSocket:", `${WS_URL}/messages`)
-    console.log("🔑 Token length:", token.length)
-
-    const newSocket = io(`${WS_URL}/messages`, {
-      auth: {
-        token: token,
-      },
-      transports: ["websocket", "polling"],
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-    })
-
-    newSocket.on("connect", () => {
-      console.log("✅ WebSocket connected:", newSocket.id)
-      setIsConnected(true)
-    })
-
-    newSocket.on("disconnect", (reason) => {
-      console.log("❌ WebSocket disconnected:", reason)
-      setIsConnected(false)
-    })
-
-    newSocket.on("connect_error", (error) => {
-      console.error("❌ WebSocket connection error:", error.message)
-      console.error("Error details:", error)
-      setIsConnected(false)
-    })
-
-    newSocket.on("error", (error) => {
-      console.error("❌ WebSocket error:", error)
-    })
-
-    socketRef.current = newSocket
-    setSocket(newSocket)
+    connectWebSocket()
 
     // Cleanup
     return () => {

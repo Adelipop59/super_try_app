@@ -27,18 +27,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuth = async () => {
     try {
-      const token = api.getToken()
-      if (!token) {
-        setLoading(false)
-        return
-      }
-
+      // Cookies are automatically sent, just try to get the profile
       const profile = await api.getMe()
       setUser(profile)
-    } catch {
-      // Token invalide ou expiré - nettoyer silencieusement
-      api.setToken(null)
-      api.setRefreshToken(null)
+    } catch (error: any) {
+      // Silently handle auth errors - user is simply not logged in
+      // Don't log these errors as they're expected when not authenticated
       setUser(null)
     } finally {
       setLoading(false)
@@ -48,8 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (data: SignInData) => {
     try {
       const response = await api.signIn(data)
-      api.setToken(response.access_token)
-      api.setRefreshToken(response.refresh_token)
+      // Cookies are set automatically by the backend, just store the profile
       setUser(response.profile)
       router.push('/dashboard')
     } catch (error) {
@@ -60,8 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (data: SignUpData) => {
     try {
       const response = await api.signUp(data)
-      api.setToken(response.access_token)
-      api.setRefreshToken(response.refresh_token)
+      // Cookies are set automatically by the backend, just store the profile
       setUser(response.profile)
       router.push('/dashboard')
     } catch (error) {

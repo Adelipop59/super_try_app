@@ -1,4 +1,4 @@
-import { NetworkError, logError, getErrorContext } from './error-handler'
+import { NetworkError, logError } from './error-handler'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
 
@@ -825,56 +825,34 @@ export class ApiError extends Error {
 
 class ApiClient {
   private baseUrl: string
-  private token: string | null = null
-  private refreshToken: string | null = null
   private isRefreshing: boolean = false
   private refreshPromise: Promise<boolean> | null = null
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl
-
-    // Récupérer les tokens du localStorage si disponible
-    if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('auth_token')
-      this.refreshToken = localStorage.getItem('refresh_token')
-    }
+    // Tokens are now stored in httpOnly cookies, managed automatically by the browser
   }
 
-  setToken(token: string | null) {
-    this.token = token
-    if (typeof window !== 'undefined') {
-      if (token) {
-        localStorage.setItem('auth_token', token)
-      } else {
-        localStorage.removeItem('auth_token')
-      }
-    }
+  // Deprecated: Keep for backward compatibility but don't use localStorage anymore
+  setToken(_token: string | null) {
+    console.warn('setToken is deprecated: tokens are now managed via httpOnly cookies')
   }
 
-  setRefreshToken(token: string | null) {
-    this.refreshToken = token
-    if (typeof window !== 'undefined') {
-      if (token) {
-        localStorage.setItem('refresh_token', token)
-      } else {
-        localStorage.removeItem('refresh_token')
-      }
-    }
+  setRefreshToken(_token: string | null) {
+    console.warn('setRefreshToken is deprecated: tokens are now managed via httpOnly cookies')
   }
 
   getToken() {
-    return this.token
+    console.warn('getToken is deprecated: tokens are now managed via httpOnly cookies')
+    return null
   }
 
   getRefreshToken() {
-    return this.refreshToken
+    console.warn('getRefreshToken is deprecated: tokens are now managed via httpOnly cookies')
+    return null
   }
 
   private async tryRefreshToken(): Promise<boolean> {
-    if (!this.refreshToken) {
-      return false
-    }
-
     // Si un refresh est déjà en cours, attendre sa résolution
     if (this.isRefreshing && this.refreshPromise) {
       return this.refreshPromise
@@ -888,22 +866,17 @@ class ApiClient {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ refresh_token: this.refreshToken }),
+          credentials: 'include', // Send cookies automatically
         })
 
         if (!response.ok) {
-          // Refresh token invalide, nettoyer les tokens
-          this.setToken(null)
-          this.setRefreshToken(null)
+          // Refresh token invalide (cookie expired or invalid)
           return false
         }
 
-        const data: RefreshTokenResponse = await response.json()
-        this.setToken(data.access_token)
+        // New access_token is set in cookie automatically by the backend
         return true
       } catch {
-        this.setToken(null)
-        this.setRefreshToken(null)
         return false
       } finally {
         this.isRefreshing = false
@@ -925,25 +898,23 @@ class ApiClient {
         ...(options.headers as Record<string, string>),
       }
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`
-      }
+      // Cookies are sent automatically, no need to add Authorization header
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         ...options,
         headers,
+        credentials: 'include', // Always send cookies
       })
 
-      // Si erreur 401 et qu'on a un refresh token, tenter de rafraîchir
-      if (response.status === 401 && retry && this.refreshToken) {
+      // Si erreur 401, tenter de rafraîchir le token (cookie)
+      if (response.status === 401 && retry) {
         const refreshed = await this.tryRefreshToken()
         if (refreshed) {
-          // Réessayer la requête avec le nouveau token
+          // Réessayer la requête avec le nouveau token (dans le cookie)
           return this.request<T>(endpoint, options, false)
         }
-        // Si le refresh a échoué, propager l'erreur 401
+        // Si le refresh a échoué, propager l'erreur 401 sans logger (utilisateur non connecté)
         const authError = new ApiError('Session expirée. Veuillez vous reconnecter.', undefined, 401)
-        logError(authError, `API: ${options.method || 'GET'} ${endpoint}`)
         throw authError
       }
 
@@ -956,7 +927,10 @@ class ApiClient {
           error.errors,
           error.statusCode || response.status
         )
-        logError(apiError, `API: ${options.method || 'GET'} ${endpoint}`)
+        // Ne pas logger les erreurs 401 (non authentifié est un état normal)
+        if (response.status !== 401) {
+          logError(apiError, `API: ${options.method || 'GET'} ${endpoint}`)
+        }
         throw apiError
       }
 
@@ -1004,8 +978,10 @@ class ApiClient {
   }
 
   async signOut() {
-    this.setToken(null)
-    this.setRefreshToken(null)
+    // Call backend logout to clear cookies
+    await this.request('/auth/logout', {
+      method: 'POST',
+    })
   }
 
   // Users endpoints

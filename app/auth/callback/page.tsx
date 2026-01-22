@@ -10,94 +10,70 @@ export default function AuthCallbackPage() {
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
   const [message, setMessage] = useState("")
+  const [hasRun, setHasRun] = useState(false)
 
   useEffect(() => {
+    // Prevent double execution in React StrictMode
+    if (hasRun) return
+
     const handleCallback = async () => {
+      setHasRun(true)
       console.log('[Auth Callback] Starting callback handler')
-      console.log('[Auth Callback] Current URL:', window.location.href)
-      console.log('[Auth Callback] Search params:', window.location.search)
-      console.log('[Auth Callback] Hash fragment:', window.location.hash)
 
       try {
-        // Récupérer les tokens depuis l'URL (query params OU hash fragment)
-        let accessToken = searchParams.get("access_token")
-        let refreshToken = searchParams.get("refresh_token")
-        let error = searchParams.get("error")
-        let errorDescription = searchParams.get("error_description")
+        // Check for errors in URL
+        const error = searchParams.get("error")
+        const errorDescription = searchParams.get("error_description")
 
-        // Si les tokens ne sont pas dans les query params, vérifier le hash fragment (Supabase OAuth)
-        if (!accessToken && window.location.hash) {
-          console.log('[Auth Callback] Checking hash fragment for tokens')
-          const hashParams = new URLSearchParams(window.location.hash.substring(1))
-          accessToken = hashParams.get("access_token")
-          refreshToken = hashParams.get("refresh_token")
-          error = hashParams.get("error")
-          errorDescription = hashParams.get("error_description")
-
-          console.log('[Auth Callback] Hash fragment params:', {
-            hasAccessToken: !!accessToken,
-            hasRefreshToken: !!refreshToken,
-            hasError: !!error
-          })
-        }
-
-        // Log all URL parameters
-        const allParams: Record<string, string> = {}
-        searchParams.forEach((value, key) => {
-          allParams[key] = value
-        })
-        console.log('[Auth Callback] Query parameters:', allParams)
-
-        console.log('[Auth Callback] Access token present:', !!accessToken)
-        console.log('[Auth Callback] Refresh token present:', !!refreshToken)
-        console.log('[Auth Callback] Error present:', !!error)
-
-        // Vérifier s'il y a une erreur
         if (error) {
           console.error('[Auth Callback] OAuth error:', error, errorDescription)
           setStatus("error")
           setMessage(errorDescription || "Une erreur est survenue lors de l'authentification")
 
-          // Rediriger vers la page d'erreur après 2 secondes
           setTimeout(() => {
             router.push(`/auth/error?error=${encodeURIComponent(error)}&description=${encodeURIComponent(errorDescription || "")}`)
           }, 2000)
           return
         }
 
-        // Vérifier que les tokens sont présents
-        if (!accessToken || !refreshToken) {
-          console.error('[Auth Callback] Missing tokens in callback URL')
-          console.error('[Auth Callback] This might indicate a backend OAuth configuration issue')
-          setStatus("error")
-          setMessage("Tokens manquants dans la réponse OAuth")
+        console.log('[Auth Callback] No errors detected, checking for tokens in URL hash')
 
-          setTimeout(() => {
-            router.push("/auth/error?error=missing_tokens")
-          }, 2000)
-          return
+        // Extract tokens from URL hash (sent by backend after OAuth)
+        const hash = window.location.hash.substring(1)
+        const params = new URLSearchParams(hash)
+        const accessToken = params.get('access_token')
+        const refreshToken = params.get('refresh_token')
+
+        if (!accessToken || !refreshToken) {
+          throw new Error('Tokens manquants dans l\'URL de callback')
         }
 
-        console.log('[Auth Callback] Tokens received successfully')
+        console.log('[Auth Callback] Tokens found in URL, storing in httpOnly cookies')
 
-        // Stocker les tokens
-        localStorage.setItem("accessToken", accessToken)
-        localStorage.setItem("refreshToken", refreshToken)
-        console.log('[Auth Callback] Tokens stored in localStorage')
+        // Store tokens in httpOnly cookies via backend endpoint
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'}/auth/store-oauth-tokens`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          }),
+        })
+
+        // Clear URL hash to remove tokens from URL
+        window.history.replaceState(null, '', window.location.pathname + window.location.search)
+
+        console.log('[Auth Callback] Tokens stored, fetching user profile')
+
+        // Now fetch user profile with cookies set
+        const profile = await api.getMe()
+        console.log('[Auth Callback] User profile received:', { role: profile.role, id: profile.id })
 
         setStatus("success")
         setMessage("Authentification réussie ! Redirection en cours...")
 
-        // Récupérer les informations de l'utilisateur depuis le backend
-        console.log('[Auth Callback] Fetching user information from backend')
-
-        // Configurer le token dans l'API client
-        api.setToken(accessToken)
-
-        const profile = await api.getMe()
-        console.log('[Auth Callback] User profile received:', { role: profile.role, id: profile.id })
-
-        // Rediriger vers le dashboard approprié selon le rôle
+        // Redirect to appropriate dashboard based on role
         const dashboardPath = profile.role === "PRO"
           ? "/dashboard/pro"
           : profile.role === "ADMIN"
@@ -121,7 +97,7 @@ export default function AuthCallbackPage() {
     }
 
     handleCallback()
-  }, [searchParams, router])
+  }, [searchParams, router, hasRun])
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
