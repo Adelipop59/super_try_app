@@ -6,13 +6,20 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies()
-    const token = cookieStore.get('supabase-auth-token')?.value
+
+    // Read token from cookie (priority) or fallback to Authorization header
+    let token = cookieStore.get('access_token')?.value
+
+    if (!token) {
+      const authHeader = request.headers.get('Authorization')
+      token = authHeader?.replace('Bearer ', '')
+    }
 
     console.log('[Upload API] Token present:', !!token)
     console.log('[Upload API] API_URL:', API_URL)
 
     if (!token) {
-      console.error('[Upload API] No token found')
+      console.error('[Upload API] No token found in cookies or headers')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

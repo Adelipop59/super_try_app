@@ -16,7 +16,7 @@ pnpm install
 pnpm dev
 ```
 
-Ouvrez [http://localhost:3000](http://localhost:3000) dans votre navigateur.
+Ouvrez [http://localhost:3001](http://localhost:3001) dans votre navigateur.
 
 ## 📁 Structure du projet
 

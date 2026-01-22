@@ -37,9 +37,11 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
       const formData = new FormData()
       formData.append("file", file)
 
+      // Cookies are sent automatically, no need to pass token manually
       const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
+        credentials: "include", // Send cookies automatically
       })
 
       if (!response.ok) {
