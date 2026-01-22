@@ -11,6 +11,7 @@ import { twMerge } from "tailwind-merge";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
+import { SplineScene } from "@/components/ui/splite";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -232,6 +233,25 @@ function SignUpForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState<"USER" | "PRO">("USER");
+  const [countries, setCountries] = useState<any[]>([]);
+  const [loadingCountries, setLoadingCountries] = useState(true);
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await fetch("/api/countries?locale=fr");
+        if (response.ok) {
+          const data = await response.json();
+          setCountries(data.countries || []);
+        }
+      } catch (err) {
+        console.error("Error fetching countries:", err);
+      } finally {
+        setLoadingCountries(false);
+      }
+    };
+    fetchCountries();
+  }, []);
 
   const handleSignUp = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -248,15 +268,58 @@ function SignUpForm() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Le mot de passe doit contenir au moins 6 caractères");
+    if (password.length < 8) {
+      setError("Le mot de passe doit contenir au moins 8 caractères");
       return;
+    }
+
+    // Validation PRO
+    if (role === "PRO") {
+      const firstName = formData.get("firstName") as string;
+      const lastName = formData.get("lastName") as string;
+      const companyName = formData.get("companyName") as string;
+      const country = formData.get("country") as string;
+
+      if (!firstName || !lastName || !companyName || !country) {
+        setError("Tous les champs obligatoires doivent être remplis pour un compte PRO");
+        return;
+      }
     }
 
     setLoading(true);
 
     try {
-      await signUp({ email, password, role });
+      if (role === "PRO") {
+        // Pour PRO, utiliser l'API signup personnalisée
+        const response = await fetch("/api/auth/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            password,
+            role: "PRO",
+            firstName: formData.get("firstName"),
+            lastName: formData.get("lastName"),
+            companyName: formData.get("companyName"),
+            country: formData.get("country"),
+            phone: formData.get("phone") || undefined,
+            siret: formData.get("siret") || undefined,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Erreur lors de l'inscription");
+        }
+
+        // Succès - afficher message
+        setError("");
+        alert("Inscription réussie ! Vérifiez votre email pour confirmer votre compte.");
+        window.location.href = "/auth/email-verification-sent";
+      } else {
+        // Pour USER, utiliser la méthode existante
+        await signUp({ email, password, role });
+      }
     } catch (err: any) {
       setError(err.message || "Erreur lors de l'inscription");
     } finally {
@@ -297,14 +360,11 @@ function SignUpForm() {
                 Je veux tester des produits
               </div>
             </button>
-            <button
-              type="button"
-              onClick={() => setRole("PRO")}
+            <Link
+              href="/signup/pro"
               className={cn(
                 "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
-                role === "PRO"
-                  ? "border-primary bg-primary/5"
-                  : "border-input hover:border-primary/50"
+                "border-input hover:border-primary/50"
               )}
             >
               <div className="text-2xl">🏢</div>
@@ -312,13 +372,65 @@ function SignUpForm() {
               <div className="text-xs text-muted-foreground text-center">
                 Je veux faire tester mes produits
               </div>
-            </button>
+            </Link>
           </div>
         </div>
 
         <div className="grid gap-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" placeholder="m@example.com" required autoComplete="email" /></div>
-        <PasswordInput name="password" label="Password" required autoComplete="new-password" placeholder="Password" minLength={6} />
-        <PasswordInput name="confirmPassword" label="Confirm Password" required autoComplete="new-password" placeholder="Confirm Password" minLength={6} />
+        <PasswordInput name="password" label="Password" required autoComplete="new-password" placeholder="Password" minLength={8} />
+        <PasswordInput name="confirmPassword" label="Confirm Password" required autoComplete="new-password" placeholder="Confirm Password" minLength={8} />
+
+        {/* Champs additionnels pour PRO */}
+        {role === "PRO" && (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="firstName">Prénom <span className="text-red-500">*</span></Label>
+                <Input id="firstName" name="firstName" type="text" placeholder="Jean" required minLength={2} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="lastName">Nom <span className="text-red-500">*</span></Label>
+                <Input id="lastName" name="lastName" type="text" placeholder="Dupont" required minLength={2} />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="companyName">Nom de l'entreprise <span className="text-red-500">*</span></Label>
+              <Input id="companyName" name="companyName" type="text" placeholder="ACME Corporation" required minLength={2} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="country">Pays <span className="text-red-500">*</span></Label>
+              {loadingCountries ? (
+                <div className="flex items-center gap-2 p-3 border rounded-md">
+                  <span className="text-sm text-muted-foreground">Chargement...</span>
+                </div>
+              ) : (
+                <select
+                  id="country"
+                  name="country"
+                  required
+                  className="flex h-10 w-full rounded-lg border border-input dark:border-input/50 bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">Sélectionnez un pays</option>
+                  {countries.map((country) => (
+                    <option key={country.code} value={country.code}>
+                      {country.name}
+                      {!country.isActive && " (Bientôt disponible)"}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="phone">Téléphone</Label>
+              <Input id="phone" name="phone" type="tel" placeholder="+33 6 12 34 56 78" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="siret">SIRET</Label>
+              <Input id="siret" name="siret" type="text" placeholder="12345678901234" maxLength={14} />
+            </div>
+          </>
+        )}
+
         <Button type="submit" variant="outline" className="mt-2" disabled={loading}>
           {loading ? "Création..." : `Sign Up as ${role === "USER" ? "Testeur" : "Vendeur"}`}
         </Button>
@@ -347,12 +459,40 @@ function AuthFormContainer({ isSignIn, onToggle }: { isSignIn: boolean; onToggle
             <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
                 <span className="relative z-10 bg-background px-2 text-muted-foreground">Or continue with</span>
             </div>
-            <Button variant="outline" type="button" onClick={() => console.log("UI: Google button clicked")}>
+            <Button variant="outline" type="button" onClick={() => handleOAuthClick("google")}>
                 <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google icon" className="mr-2 h-4 w-4" />
                 Continue with Google
             </Button>
+            {!isSignIn && (
+              <Button variant="outline" type="button" onClick={() => handleOAuthClick("microsoft")}>
+                <svg className="mr-2 h-4 w-4" viewBox="0 0 23 23">
+                  <path fill="#f3f3f3" d="M0 0h23v23H0z" />
+                  <path fill="#f35325" d="M1 1h10v10H1z" />
+                  <path fill="#81bc06" d="M12 1h10v10H12z" />
+                  <path fill="#05a6f0" d="M1 12h10v10H1z" />
+                  <path fill="#ffba08" d="M12 12h10v10H12z" />
+                </svg>
+                Continue with Microsoft
+              </Button>
+            )}
         </div>
     )
+}
+
+async function handleOAuthClick(provider: "google" | "microsoft") {
+    try {
+        if (provider === "microsoft") {
+            const response = await fetch("/api/auth/oauth/microsoft");
+            if (response.ok) {
+                const { url } = await response.json();
+                window.location.href = url;
+            }
+        } else {
+            console.log("UI: Google button clicked");
+        }
+    } catch (error) {
+        console.error("OAuth error:", error);
+    }
 }
 
 interface AuthContentProps {
@@ -429,21 +569,27 @@ export function AuthUI({ signInContent = {}, signUpContent = {}, defaultMode = '
       </div>
 
       <div
-        className="hidden md:block relative bg-cover bg-center transition-all duration-500 ease-in-out"
-        style={{ backgroundImage: `url(${currentContent.image.src})` }}
+        className="hidden md:block relative bg-background overflow-hidden"
         key={currentContent.image.src}
       >
+        {/* 3D Robot Scene */}
+        <div className="absolute inset-0">
+          <SplineScene
+            scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
+            className="w-full h-full"
+          />
+        </div>
 
-        <div className="absolute inset-x-0 bottom-0 h-[100px] bg-gradient-to-t from-background to-transparent" />
-        
+        <div className="absolute inset-x-0 bottom-0 h-[100px] bg-linear-to-t from-background to-transparent" />
+
         <div className="relative z-10 flex h-full flex-col items-center justify-end p-2 pb-6">
             <blockquote className="space-y-2 text-center text-foreground">
               <p className="text-lg font-medium">
-                “<Typewriter
+                "<Typewriter
                     key={currentContent.quote.text}
                     text={currentContent.quote.text}
                     speed={60}
-                  />”
+                  />"
               </p>
               <cite className="block text-sm font-light text-muted-foreground not-italic">
                   — {currentContent.quote.author}

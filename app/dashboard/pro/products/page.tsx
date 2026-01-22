@@ -23,6 +23,7 @@ import { Switch } from "@/components/ui/switch"
 import { PlusIcon, PencilIcon, Trash2Icon, AlertTriangleIcon, PackageIcon } from "lucide-react"
 import { toast } from "sonner"
 import { ProductsDataTable } from "@/components/products-data-table"
+import { ImageUpload } from "@/components/ui/image-upload"
 
 export default function ProductsPage() {
   const { user } = useAuth()
@@ -335,16 +336,13 @@ export default function ProductsPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="create-imageUrl" className="text-sm font-medium">
-                URL de l&apos;image
+              <Label className="text-sm font-medium">
+                Image du produit
               </Label>
-              <Input
-                id="create-imageUrl"
-                type="url"
-                placeholder="https://exemple.com/image.jpg"
+              <ImageUpload
                 value={createForm.imageUrl}
-                onChange={(e) => setCreateForm({ ...createForm, imageUrl: e.target.value })}
-                className="h-10"
+                onChange={(url) => setCreateForm({ ...createForm, imageUrl: url })}
+                disabled={isCreating}
               />
             </div>
           </div>
@@ -456,16 +454,13 @@ export default function ProductsPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-imageUrl" className="text-sm font-medium">
-                URL de l&apos;image
+              <Label className="text-sm font-medium">
+                Image du produit
               </Label>
-              <Input
-                id="edit-imageUrl"
-                type="url"
-                placeholder="https://exemple.com/image.jpg"
+              <ImageUpload
                 value={editForm.imageUrl}
-                onChange={(e) => setEditForm({ ...editForm, imageUrl: e.target.value })}
-                className="h-10"
+                onChange={(url) => setEditForm({ ...editForm, imageUrl: url })}
+                disabled={isSaving}
               />
             </div>
             <div className="flex items-center justify-between rounded-lg border p-4 bg-muted/50">
