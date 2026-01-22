@@ -32,7 +32,7 @@ export function useErrorHandler() {
     if (errorContext.type === 'UNAUTHORIZED') {
       // Redirect to login page after a short delay
       setTimeout(() => {
-        router.push('/auth/signin')
+        router.push('/signin')
       }, 1500)
     }
 

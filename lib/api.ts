@@ -8,6 +8,8 @@ export interface SignUpData {
   role?: 'USER' | 'PRO'
   firstName?: string
   lastName?: string
+  country?: string
+  countries?: string[]
   phone?: string
   companyName?: string
   siret?: string
