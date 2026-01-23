@@ -102,6 +102,7 @@ function CampaignsPageContent() {
     startDate: '',
     endDate: '',
     totalSlots: 0,
+    marketplace: '',
   })
   const [editProduct, setEditProduct] = useState<{
     productId: string
@@ -157,6 +158,7 @@ function CampaignsPageContent() {
     startDate: '',
     endDate: '',
     totalSlots: 10,
+    marketplace: '',
   })
   const [selectedProduct, setSelectedProduct] = useState<{
     productId: string
@@ -292,6 +294,7 @@ function CampaignsPageContent() {
       startDate: campaign.startDate ? campaign.startDate.split('T')[0] : '',
       endDate: campaign.endDate ? campaign.endDate.split('T')[0] : '',
       totalSlots: campaign.totalSlots,
+      marketplace: campaign.marketplace || '',
     })
 
     // Set product from campaign
@@ -567,6 +570,7 @@ function CampaignsPageContent() {
         title: string
         description: string
         totalSlots: number
+        marketplace?: string
         startDate?: string
         endDate?: string
         products?: {
@@ -578,6 +582,7 @@ function CampaignsPageContent() {
         title: editForm.title,
         description: editForm.description,
         totalSlots: editProduct?.quantity || 0,  // Synchronisé avec quantity du produit
+        marketplace: editForm.marketplace || undefined,
       }
 
       // Only include dates if they are set
@@ -687,6 +692,11 @@ function CampaignsPageContent() {
       return
     }
 
+    if (!createForm.marketplace) {
+      toast.error('Le marketplace est requis')
+      return
+    }
+
     try {
       setIsCreating(true)
 
@@ -694,6 +704,7 @@ function CampaignsPageContent() {
         title: string
         description?: string
         totalSlots: number
+        marketplace: string
         startDate?: string
         endDate?: string
         products?: {
@@ -705,6 +716,7 @@ function CampaignsPageContent() {
         title: createForm.title,
         description: createForm.description || undefined,
         totalSlots: selectedProduct?.quantity || 0,  // Synchronisé avec quantity du produit
+        marketplace: createForm.marketplace,
       }
 
       if (createForm.startDate) {
@@ -771,6 +783,7 @@ function CampaignsPageContent() {
         startDate: '',
         endDate: '',
         totalSlots: 10,
+        marketplace: '',
       })
       setSelectedProduct(null)
       setDistributions([])
@@ -921,6 +934,10 @@ function CampaignsPageContent() {
                   toast.error('Le titre est requis pour passer a l\'etape suivante')
                   return
                 }
+                if (!createForm.marketplace) {
+                  toast.error('Le marketplace est requis pour passer a l\'etape suivante')
+                  return
+                }
                 setCreateStep(2)
               }}
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -942,6 +959,10 @@ function CampaignsPageContent() {
                   toast.error('Le titre est requis pour passer a l\'etape suivante')
                   return
                 }
+                if (!createForm.marketplace) {
+                  toast.error('Le marketplace est requis pour passer a l\'etape suivante')
+                  return
+                }
                 setCreateStep(3)
               }}
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -961,6 +982,10 @@ function CampaignsPageContent() {
               onClick={() => {
                 if (!createForm.title.trim()) {
                   toast.error('Le titre est requis pour passer a l\'etape suivante')
+                  return
+                }
+                if (!createForm.marketplace) {
+                  toast.error('Le marketplace est requis pour passer a l\'etape suivante')
                   return
                 }
                 setCreateStep(4)
@@ -1004,6 +1029,27 @@ function CampaignsPageContent() {
                   onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
                   className="min-h-[80px] resize-none"
                 />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="create-marketplace" className="text-sm font-medium">
+                  Marketplace <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={createForm.marketplace}
+                  onValueChange={(value) => setCreateForm({ ...createForm, marketplace: value })}
+                >
+                  <SelectTrigger id="create-marketplace" className="h-10">
+                    <SelectValue placeholder="Sélectionnez un pays" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FR">France (FR)</SelectItem>
+                    <SelectItem value="DE">Allemagne (DE)</SelectItem>
+                    <SelectItem value="UK">Royaume-Uni (UK)</SelectItem>
+                    <SelectItem value="US">États-Unis (US)</SelectItem>
+                    <SelectItem value="ES">Espagne (ES)</SelectItem>
+                    <SelectItem value="IT">Italie (IT)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
@@ -1432,6 +1478,10 @@ function CampaignsPageContent() {
                       toast.error('Le titre est requis')
                       return
                     }
+                    if (!createForm.marketplace) {
+                      toast.error('Le marketplace est requis')
+                      return
+                    }
                     setCreateStep(2)
                   }}
                 >
@@ -1597,6 +1647,27 @@ function CampaignsPageContent() {
                       onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                       className="min-h-[80px] resize-none"
                     />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-marketplace" className="text-sm font-medium">
+                      Marketplace <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={editForm.marketplace}
+                      onValueChange={(value) => setEditForm({ ...editForm, marketplace: value })}
+                    >
+                      <SelectTrigger id="edit-marketplace" className="h-10">
+                        <SelectValue placeholder="Sélectionnez un pays" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="FR">France (FR)</SelectItem>
+                        <SelectItem value="DE">Allemagne (DE)</SelectItem>
+                        <SelectItem value="UK">Royaume-Uni (UK)</SelectItem>
+                        <SelectItem value="US">États-Unis (US)</SelectItem>
+                        <SelectItem value="ES">Espagne (ES)</SelectItem>
+                        <SelectItem value="IT">Italie (IT)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
