@@ -11,6 +11,7 @@ interface AuthContextType {
   signUp: (data: SignUpData) => Promise<void>
   signOut: () => Promise<void>
   updateUser: (data: UpdateProfileData) => Promise<void>
+  refreshAuth: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -22,17 +23,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Vérifier si l'utilisateur est connecté au chargement
   useEffect(() => {
+    // Skip initial auth check on OAuth callback page
+    // The callback page will handle token storage and call refreshAuth() after
+    const isCallbackPage = typeof window !== 'undefined' &&
+                          window.location.pathname.includes('/auth/callback')
+
+    if (isCallbackPage) {
+      setLoading(false)
+      return
+    }
+
     checkAuth()
   }, [])
 
   const checkAuth = async () => {
     try {
-      // Cookies are automatically sent, just try to get the profile
+      // Les cookies httpOnly sont automatiquement envoyés par le navigateur
+      // On appelle directement /me, le backend vérifie le cookie
       const profile = await api.getMe()
       setUser(profile)
     } catch (error: any) {
-      // Silently handle auth errors - user is simply not logged in
-      // Don't log these errors as they're expected when not authenticated
+      // Si erreur 401, l'utilisateur n'est pas connecté (cookie expiré ou absent)
+      // C'est un comportement normal, on ne log pas l'erreur
       setUser(null)
     } finally {
       setLoading(false)
@@ -64,10 +76,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       await api.signOut()
-      setUser(null)
-      router.push('/signin')
     } catch (error) {
       console.error('Sign out error:', error)
+    } finally {
+      // Toujours déconnecter côté frontend, même si l'API échoue
+      setUser(null)
+      router.push('/signin')
     }
   }
 
@@ -80,9 +94,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const refreshAuth = async () => {
+    await checkAuth()
+  }
+
   return (
     <AuthContext.Provider
-      value={{ user, loading, signIn, signUp, signOut, updateUser }}
+      value={{ user, loading, signIn, signUp, signOut, updateUser, refreshAuth }}
     >
       {children}
     </AuthContext.Provider>

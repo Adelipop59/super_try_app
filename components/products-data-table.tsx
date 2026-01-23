@@ -114,11 +114,16 @@ export function ProductsDataTable({ data, onEdit, onDelete, onToggleActive, onAd
       header: "Produit",
       cell: ({ row }) => {
         const product = row.original
+        // Récupérer l'image depuis le tableau images
+        const imageUrl = product.images && Array.isArray(product.images) && product.images.length > 0
+          ? product.images[0].url
+          : null
+
         return (
           <div className="flex items-center gap-3">
-            {product.imageUrl ? (
+            {imageUrl ? (
               <img
-                src={product.imageUrl}
+                src={imageUrl}
                 alt={product.name}
                 className="h-10 w-10 rounded-md object-cover"
               />

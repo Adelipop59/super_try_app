@@ -434,14 +434,33 @@ export interface CampaignCostResponse {
   currency: string
 }
 
+export interface Category {
+  id: string
+  name: string
+  slug: string
+  description?: string
+  icon?: string
+  isActive: boolean
+  productCount?: number
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Product {
   id: string
   name: string
   description?: string
+  categoryId?: string
+  asin?: string
+  productUrl?: string
   price: number
   shippingCost?: number
-  amazonUrl?: string
-  imageUrl?: string
+  amazonUrl?: string // Legacy, kept for backward compatibility
+  images?: Array<{
+    url: string
+    order: number
+    isPrimary: boolean
+  }> | null
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -906,8 +925,17 @@ class ApiClient {
         credentials: 'include', // Always send cookies
       })
 
-      // Si erreur 401, tenter de rafraîchir le token (cookie)
-      if (response.status === 401 && retry) {
+      // Ne pas essayer de refresh sur les routes d'authentification et /me
+      // Car un 401 sur ces routes signifie "pas connecté", pas "token expiré"
+      const isAuthRoute = endpoint.startsWith('/auth/login') ||
+                          endpoint.startsWith('/auth/signup') ||
+                          endpoint.startsWith('/auth/refresh') ||
+                          endpoint.startsWith('/auth/forgot-password') ||
+                          endpoint.startsWith('/auth/reset-password') ||
+                          endpoint.startsWith('/users/me')
+
+      // Si erreur 401, tenter de rafraîchir le token (cookie) sauf pour les routes d'auth et /me
+      if (response.status === 401 && retry && !isAuthRoute) {
         const refreshed = await this.tryRefreshToken()
         if (refreshed) {
           // Réessayer la requête avec le nouveau token (dans le cookie)
@@ -981,6 +1009,13 @@ class ApiClient {
     // Call backend logout to clear cookies
     await this.request('/auth/logout', {
       method: 'POST',
+    })
+  }
+
+  async completeOnboarding(data: any): Promise<Profile> {
+    return this.request<Profile>('/auth/complete-onboarding', {
+      method: 'POST',
+      body: JSON.stringify(data),
     })
   }
 
@@ -1081,6 +1116,22 @@ class ApiClient {
     })
   }
 
+  // ============= CATEGORIES =============
+
+  async getCategories(): Promise<Category[]> {
+    return this.request<Category[]>('/categories')
+  }
+
+  async getCategoryById(id: string): Promise<Category> {
+    return this.request<Category>(`/categories/${id}`)
+  }
+
+  async getCategoryBySlug(slug: string): Promise<Category> {
+    return this.request<Category>(`/categories/slug/${slug}`)
+  }
+
+  // ============= PRODUCTS =============
+
   async getMyProducts(page: number = 1, limit: number = 100): Promise<Product[]> {
     const response = await this.request<PaginatedResponse<Product>>(`/products/my-products?page=${page}&limit=${limit}`)
     return response.data
@@ -1097,9 +1148,12 @@ class ApiClient {
   async createProduct(data: {
     name: string
     description?: string
+    categoryId?: string
+    asin?: string
+    productUrl?: string
     price: number
     shippingCost?: number
-    amazonUrl?: string
+    amazonUrl?: string // Legacy
     imageUrl?: string
   }): Promise<Product> {
     return this.request<Product>('/products', {
@@ -1119,6 +1173,25 @@ class ApiClient {
     return this.request(`/products/${id}`, {
       method: 'DELETE',
     })
+  }
+
+  async addProductImages(productId: string, files: File[]): Promise<Product> {
+    const formData = new FormData()
+    files.forEach((file) => {
+      formData.append('images', file)
+    })
+
+    const response = await this.fetch(`/products/${productId}/images`, {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to add images' }))
+      throw new Error(error.message || 'Failed to add images')
+    }
+
+    return response.json()
   }
 
   async getWalletBalance(): Promise<WalletBalance> {

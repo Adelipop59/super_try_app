@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[Upload API] Token present:', !!token)
-    console.log('[Upload API] API_URL:', API_URL)
+    console.log('[Upload API] API_BASE_URL:', API_BASE_URL)
 
     if (!token) {
       console.error('[Upload API] No token found in cookies or headers')
@@ -39,8 +39,10 @@ export async function POST(request: NextRequest) {
     // Ajouter les paramètres requis par le backend
     formData.append('entityType', 'products')
 
-    // Upload endpoint is at /api/upload/image (not /api/v1)
-    const uploadUrl = API_URL.replace('/api/v1', '/api') + '/upload/image'
+    // Construire l'URL du backend: API_BASE_URL = http://localhost:3001/api/v1
+    // On veut: http://localhost:3001/api/upload/image
+    const backendBaseUrl = API_BASE_URL.replace('/api/v1', '')
+    const uploadUrl = `${backendBaseUrl}/api/upload/image`
     console.log('[Upload API] Calling backend:', uploadUrl)
     const response = await fetch(uploadUrl, {
       method: 'POST',
