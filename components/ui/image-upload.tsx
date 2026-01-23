@@ -1,20 +1,26 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { X, ImageIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ImageUploadProps {
   value?: string
   onChange: (url: string) => void
+  onFileChange?: (file: File | null) => void // Nouveau : callback pour le fichier
   disabled?: boolean
 }
 
-export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
+export function ImageUpload({ value, onChange, onFileChange, disabled }: ImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [preview, setPreview] = useState<string | undefined>(value)
   const [error, setError] = useState<string | null>(null)
+
+  // Synchroniser preview avec value quand il change
+  useEffect(() => {
+    setPreview(value)
+  }, [value])
 
   const handleFile = async (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -33,15 +39,22 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
       }
       reader.readAsDataURL(file)
 
-      // Upload vers Supabase Storage
+      // Si onFileChange est fourni, stocker le fichier localement (nouveau comportement)
+      if (onFileChange) {
+        onFileChange(file)
+        onChange("") // URL vide pour l'instant, sera remplie après création du produit
+        setIsUploading(false)
+        return
+      }
+
+      // Sinon, upload immédiatement (ancien comportement pour compatibilité)
       const formData = new FormData()
       formData.append("file", file)
 
-      // Cookies are sent automatically, no need to pass token manually
       const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
-        credentials: "include", // Send cookies automatically
+        credentials: "include",
       })
 
       if (!response.ok) {
@@ -110,6 +123,9 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
     e.stopPropagation()
     setPreview(undefined)
     onChange("")
+    if (onFileChange) {
+      onFileChange(null)
+    }
   }
 
   return (

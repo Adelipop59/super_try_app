@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { api, Product } from "@/lib/api"
+import { api, Product, Category } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -20,6 +20,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { PlusIcon, PencilIcon, Trash2Icon, AlertTriangleIcon, PackageIcon } from "lucide-react"
 import { toast } from "sonner"
 import { ProductsDataTable } from "@/components/products-data-table"
@@ -28,6 +35,7 @@ import { ImageUpload } from "@/components/ui/image-upload"
 export default function ProductsPage() {
   const { user } = useAuth()
   const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
 
   // Create state
@@ -35,11 +43,14 @@ export default function ProductsPage() {
   const [createForm, setCreateForm] = useState({
     name: '',
     description: '',
+    categoryId: '',
+    asin: '',
+    productUrl: '',
     price: 0,
     shippingCost: 0,
     amazonUrl: '',
-    imageUrl: '',
   })
+  const [createImageFile, setCreateImageFile] = useState<File | null>(null)
   const [isCreating, setIsCreating] = useState(false)
 
   // Edit state
@@ -48,12 +59,15 @@ export default function ProductsPage() {
   const [editForm, setEditForm] = useState({
     name: '',
     description: '',
+    categoryId: '',
+    asin: '',
+    productUrl: '',
     price: 0,
     shippingCost: 0,
     amazonUrl: '',
-    imageUrl: '',
     isActive: true,
   })
+  const [editImageFile, setEditImageFile] = useState<File | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
   // Delete state
@@ -63,6 +77,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetchProducts()
+    fetchCategories()
   }, [user])
 
   const fetchProducts = async () => {
@@ -80,6 +95,16 @@ export default function ProductsPage() {
     }
   }
 
+  const fetchCategories = async () => {
+    try {
+      const data = await api.getCategories()
+      setCategories(data.filter(c => c.isActive))
+    } catch (error) {
+      console.error('Failed to fetch categories:', error)
+      setCategories([])
+    }
+  }
+
   const handleCreateSave = async () => {
     if (!createForm.name.trim()) {
       toast.error('Le nom du produit est requis')
@@ -91,28 +116,54 @@ export default function ProductsPage() {
       return
     }
 
+    if (!createForm.categoryId) {
+      toast.error('Veuillez sélectionner une catégorie')
+      return
+    }
+
     try {
       setIsCreating(true)
 
-      await api.createProduct({
-        name: createForm.name,
-        description: createForm.description || undefined,
-        price: createForm.price,
-        shippingCost: createForm.shippingCost,
-        amazonUrl: createForm.amazonUrl || undefined,
-        imageUrl: createForm.imageUrl || undefined,
+      // Utiliser FormData pour envoyer les fichiers avec les données
+      const formData = new FormData()
+      formData.append('name', createForm.name)
+      if (createForm.description) formData.append('description', createForm.description)
+      if (createForm.categoryId) formData.append('categoryId', createForm.categoryId)
+      if (createForm.asin) formData.append('asin', createForm.asin)
+      if (createForm.productUrl) formData.append('productUrl', createForm.productUrl)
+      formData.append('price', createForm.price.toString())
+      if (createForm.shippingCost) formData.append('shippingCost', createForm.shippingCost.toString())
+
+      // Ajouter le fichier image si présent
+      if (createImageFile) {
+        formData.append('images', createImageFile)
+      }
+
+      // Appeler l'API avec FormData
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'}/products`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
       })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Erreur lors de la création')
+      }
 
       toast.success('Produit créé avec succès')
       setIsCreateDialogOpen(false)
       setCreateForm({
         name: '',
         description: '',
+        categoryId: '',
+        asin: '',
+        productUrl: '',
         price: 0,
         shippingCost: 0,
         amazonUrl: '',
-        imageUrl: '',
       })
+      setCreateImageFile(null)
       fetchProducts()
     } catch (error) {
       console.error('Failed to create product:', error)
@@ -124,15 +175,19 @@ export default function ProductsPage() {
 
   const handleEditClick = (product: Product) => {
     setEditingProduct(product)
+
     setEditForm({
       name: product.name,
       description: product.description || '',
+      categoryId: product.categoryId || '',
+      asin: product.asin || '',
+      productUrl: product.productUrl || '',
       price: product.price,
       shippingCost: product.shippingCost || 0,
       amazonUrl: product.amazonUrl || '',
-      imageUrl: product.imageUrl || '',
       isActive: product.isActive,
     })
+    setEditImageFile(null)
     setIsEditDialogOpen(true)
   }
 
@@ -149,22 +204,36 @@ export default function ProductsPage() {
       return
     }
 
+    if (!editForm.categoryId) {
+      toast.error('Veuillez sélectionner une catégorie')
+      return
+    }
+
     try {
       setIsSaving(true)
 
+      // 1. Mettre à jour les données du produit (sans fichier)
       await api.updateProduct(editingProduct.id, {
         name: editForm.name,
         description: editForm.description || undefined,
+        categoryId: editForm.categoryId || undefined,
+        asin: editForm.asin || undefined,
+        productUrl: editForm.productUrl || undefined,
         price: editForm.price,
         shippingCost: editForm.shippingCost,
         amazonUrl: editForm.amazonUrl || undefined,
-        imageUrl: editForm.imageUrl || undefined,
         isActive: editForm.isActive,
       })
+
+      // 2. Si un fichier image a été sélectionné, l'uploader séparément
+      if (editImageFile) {
+        await api.addProductImages(editingProduct.id, [editImageFile])
+      }
 
       toast.success('Produit mis à jour avec succès')
       setIsEditDialogOpen(false)
       setEditingProduct(null)
+      setEditImageFile(null)
       fetchProducts()
     } catch (error) {
       console.error('Failed to update product:', error)
@@ -290,6 +359,26 @@ export default function ProductsPage() {
                 className="min-h-[80px] resize-none"
               />
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="create-category" className="text-sm font-medium">
+                Catégorie <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={createForm.categoryId}
+                onValueChange={(value) => setCreateForm({ ...createForm, categoryId: value })}
+              >
+                <SelectTrigger id="create-category" className="h-10">
+                  <SelectValue placeholder="Sélectionner une catégorie" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.icon && `${cat.icon} `}{cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="create-price" className="text-sm font-medium">
@@ -323,25 +412,52 @@ export default function ProductsPage() {
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="create-amazonUrl" className="text-sm font-medium">
-                Lien Amazon
+              <Label htmlFor="create-asin" className="text-sm font-medium">
+                ASIN Amazon (optionnel)
               </Label>
               <Input
-                id="create-amazonUrl"
-                type="url"
-                placeholder="https://amazon.fr/..."
-                value={createForm.amazonUrl}
-                onChange={(e) => setCreateForm({ ...createForm, amazonUrl: e.target.value })}
+                id="create-asin"
+                placeholder="B08N5WRWNW"
+                maxLength={10}
+                value={createForm.asin}
+                onChange={(e) => {
+                  const asin = e.target.value.toUpperCase()
+                  setCreateForm({
+                    ...createForm,
+                    asin,
+                    productUrl: asin.length === 10 ? `https://www.amazon.fr/dp/${asin}` : createForm.productUrl
+                  })
+                }}
                 className="h-10"
               />
+              <p className="text-xs text-muted-foreground">
+                L'URL sera générée automatiquement
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="create-productUrl" className="text-sm font-medium">
+                URL du produit
+              </Label>
+              <Input
+                id="create-productUrl"
+                type="url"
+                placeholder="https://www.amazon.fr/dp/..."
+                value={createForm.productUrl}
+                onChange={(e) => setCreateForm({ ...createForm, productUrl: e.target.value })}
+                className="h-10"
+              />
+              <p className="text-xs text-muted-foreground">
+                Modifiable manuellement si nécessaire
+              </p>
             </div>
             <div className="grid gap-2">
               <Label className="text-sm font-medium">
                 Image du produit
               </Label>
               <ImageUpload
-                value={createForm.imageUrl}
-                onChange={(url) => setCreateForm({ ...createForm, imageUrl: url })}
+                value=""
+                onChange={() => {}}
+                onFileChange={(file) => setCreateImageFile(file)}
                 disabled={isCreating}
               />
             </div>
@@ -368,7 +484,12 @@ export default function ProductsPage() {
       </Dialog>
 
       {/* Edit Product Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+        setIsEditDialogOpen(open)
+        if (!open) {
+          setEditImageFile(null)
+        }
+      }}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <div className="flex items-center gap-3">
@@ -408,6 +529,26 @@ export default function ProductsPage() {
                 className="min-h-[80px] resize-none"
               />
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-category" className="text-sm font-medium">
+                Catégorie <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={editForm.categoryId}
+                onValueChange={(value) => setEditForm({ ...editForm, categoryId: value })}
+              >
+                <SelectTrigger id="edit-category" className="h-10">
+                  <SelectValue placeholder="Sélectionner une catégorie" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.icon && `${cat.icon} `}{cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="edit-price" className="text-sm font-medium">
@@ -441,25 +582,52 @@ export default function ProductsPage() {
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-amazonUrl" className="text-sm font-medium">
-                Lien Amazon
+              <Label htmlFor="edit-asin" className="text-sm font-medium">
+                ASIN Amazon (optionnel)
               </Label>
               <Input
-                id="edit-amazonUrl"
-                type="url"
-                placeholder="https://amazon.fr/..."
-                value={editForm.amazonUrl}
-                onChange={(e) => setEditForm({ ...editForm, amazonUrl: e.target.value })}
+                id="edit-asin"
+                placeholder="B08N5WRWNW"
+                maxLength={10}
+                value={editForm.asin}
+                onChange={(e) => {
+                  const asin = e.target.value.toUpperCase()
+                  setEditForm({
+                    ...editForm,
+                    asin,
+                    productUrl: asin.length === 10 ? `https://www.amazon.fr/dp/${asin}` : editForm.productUrl
+                  })
+                }}
                 className="h-10"
               />
+              <p className="text-xs text-muted-foreground">
+                L'URL sera générée automatiquement
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-productUrl" className="text-sm font-medium">
+                URL du produit
+              </Label>
+              <Input
+                id="edit-productUrl"
+                type="url"
+                placeholder="https://www.amazon.fr/dp/..."
+                value={editForm.productUrl}
+                onChange={(e) => setEditForm({ ...editForm, productUrl: e.target.value })}
+                className="h-10"
+              />
+              <p className="text-xs text-muted-foreground">
+                Modifiable manuellement si nécessaire
+              </p>
             </div>
             <div className="grid gap-2">
               <Label className="text-sm font-medium">
                 Image du produit
               </Label>
               <ImageUpload
-                value={editForm.imageUrl}
-                onChange={(url) => setEditForm({ ...editForm, imageUrl: url })}
+                value={editingProduct?.images && Array.isArray(editingProduct.images) && editingProduct.images.length > 0 ? editingProduct.images[0].url : ''}
+                onChange={() => {}}
+                onFileChange={(file) => setEditImageFile(file)}
                 disabled={isSaving}
               />
             </div>

@@ -4,10 +4,12 @@ import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { api } from "@/lib/api"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function AuthCallbackPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { refreshAuth } = useAuth()
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
   const [message, setMessage] = useState("")
   const [hasRun, setHasRun] = useState(false)
@@ -64,13 +66,28 @@ export default function AuthCallbackPage() {
         // Clear URL hash to remove tokens from URL
         window.history.replaceState(null, '', window.location.pathname + window.location.search)
 
-        console.log('[Auth Callback] Tokens stored, fetching user profile')
+        console.log('[Auth Callback] Tokens stored, refreshing auth context')
 
-        // Now fetch user profile with cookies set
+        // Refresh auth context to load user profile with the new cookies
+        await refreshAuth()
+
+        // Fetch profile to check onboarding status
         const profile = await api.getMe()
-        console.log('[Auth Callback] User profile received:', { role: profile.role, id: profile.id })
+        console.log('[Auth Callback] User profile received:', { role: profile.role, id: profile.id, isOnboarded: (profile as any).isOnboarded })
 
         setStatus("success")
+
+        // Check if user needs to complete onboarding
+        if ((profile as any).isOnboarded === false) {
+          console.log('[Auth Callback] User needs to complete onboarding')
+          setMessage("Finalisation de votre inscription en cours...")
+
+          setTimeout(() => {
+            router.push("/auth/onboarding")
+          }, 1000)
+          return
+        }
+
         setMessage("Authentification réussie ! Redirection en cours...")
 
         // Redirect to appropriate dashboard based on role
