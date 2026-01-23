@@ -408,6 +408,7 @@ export interface Campaign {
   usedSlots: number
   startDate?: string
   endDate?: string
+  marketplace?: string
   products?: CampaignProduct[]
   criteria?: CampaignCriteria | null
   createdAt: string
@@ -1091,6 +1092,7 @@ class ApiClient {
     startDate?: string
     endDate?: string
     totalSlots: number
+    marketplace?: string
     products?: {
       productId: string
       quantity: number

@@ -18,6 +18,7 @@ import {
   TrendingUpIcon,
   CalendarIcon,
   EuroIcon,
+  PackageIcon,
 } from "lucide-react"
 
 export default function CampaignDetailPage() {
@@ -210,28 +211,70 @@ export default function CampaignDetailPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Places disponibles</p>
                 <p className="font-medium">
-                  {campaign.totalSlots - campaign.usedSlots} / {campaign.totalSlots}
+                  {campaign.totalSlots - (campaign.usedSlots || 0)} / {campaign.totalSlots}
                 </p>
               </div>
 
-              {campaign.products && campaign.products.length > 0 && (
+              {campaign.marketplace && (
                 <div>
-                  <p className="text-sm text-muted-foreground mb-2">Produit</p>
-                  <div className="rounded-lg border p-3">
-                    <p className="font-medium">{campaign.products[0].product?.name}</p>
-                    <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Prix: </span>
-                        <span className="font-medium">{campaign.products[0].expectedPrice}€</span>
+                  <p className="text-sm text-muted-foreground">Marketplace</p>
+                  <p className="font-medium">
+                    {campaign.marketplace === 'FR' && '🇫🇷 France'}
+                    {campaign.marketplace === 'DE' && '🇩🇪 Allemagne'}
+                    {campaign.marketplace === 'UK' && '🇬🇧 Royaume-Uni'}
+                    {campaign.marketplace === 'US' && '🇺🇸 États-Unis'}
+                    {campaign.marketplace === 'ES' && '🇪🇸 Espagne'}
+                    {campaign.marketplace === 'IT' && '🇮🇹 Italie'}
+                    {!['FR', 'DE', 'UK', 'US', 'ES', 'IT'].includes(campaign.marketplace) && campaign.marketplace}
+                  </p>
+                </div>
+              )}
+
+              {campaign.products && campaign.products.length > 0 && (() => {
+                const product = campaign.products[0].product;
+                const imageUrl = product?.images && Array.isArray(product.images) && product.images.length > 0
+                  ? product.images[0].url
+                  : null;
+
+                return (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Produit</p>
+                    <div className="rounded-lg border p-3">
+                      <div className="flex gap-3">
+                        {imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            alt={product?.name}
+                            className="h-16 w-16 rounded object-cover"
+                          />
+                        ) : (
+                          <div className="h-16 w-16 rounded bg-muted flex items-center justify-center">
+                            <PackageIcon className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <p className="font-medium">{product?.name}</p>
+                          {product?.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                              {product.description}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground">Bonus: </span>
-                        <span className="font-medium text-green-600">{campaign.products[0].bonus}€</span>
+                      <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Prix: </span>
+                          <span className="font-medium">{campaign.products[0].expectedPrice}€</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Bonus: </span>
+                          <span className="font-medium text-green-600">{campaign.products[0].bonus}€</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               <div>
                 <p className="text-sm text-muted-foreground">Acceptation automatique</p>
@@ -318,21 +361,21 @@ export default function CampaignDetailPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Prix unitaire:</span>
-                    <span className="font-medium">{campaign.products[0].expectedPrice}€</span>
+                    <span className="font-medium">{campaign.products?.[0]?.expectedPrice || 0}€</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Frais de port:</span>
-                    <span className="font-medium">{campaign.products[0].shippingCost}€</span>
+                    <span className="font-medium">{campaign.products?.[0]?.shippingCost || 0}€</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Bonus:</span>
-                    <span className="font-medium text-green-600">{campaign.products[0].bonus}€</span>
+                    <span className="font-medium text-green-600">{campaign.products?.[0]?.bonus || 0}€</span>
                   </div>
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between">
                       <span className="font-medium">Coût par testeur:</span>
                       <span className="font-bold">
-                        {(Number(campaign.products[0].expectedPrice) + Number(campaign.products[0].shippingCost) + Number(campaign.products[0].bonus)).toFixed(2)}€
+                        {((Number(campaign.products?.[0]?.expectedPrice) || 0) + (Number(campaign.products?.[0]?.shippingCost) || 0) + (Number(campaign.products?.[0]?.bonus) || 0)).toFixed(2)}€
                       </span>
                     </div>
                   </div>
@@ -340,7 +383,7 @@ export default function CampaignDetailPage() {
                     <div className="flex justify-between">
                       <span className="font-medium">Coût total:</span>
                       <span className="font-bold text-lg">
-                        {((Number(campaign.products[0].expectedPrice) + Number(campaign.products[0].shippingCost) + Number(campaign.products[0].bonus)) * Number(campaign.totalSlots)).toFixed(2)}€
+                        {(((Number(campaign.products?.[0]?.expectedPrice) || 0) + (Number(campaign.products?.[0]?.shippingCost) || 0) + (Number(campaign.products?.[0]?.bonus) || 0)) * Number(campaign.totalSlots)).toFixed(2)}€
                       </span>
                     </div>
                   </div>
