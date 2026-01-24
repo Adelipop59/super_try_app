@@ -45,7 +45,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { PlusIcon, PencilIcon, Trash2Icon, AlertTriangleIcon, PackageIcon, XIcon, CalendarIcon, CheckIcon, ListChecksIcon, ChevronUpIcon, ChevronDownIcon, GripVerticalIcon, ClipboardListIcon, EyeIcon, CreditCardIcon, FilterIcon } from "lucide-react"
+import { PlusIcon, PencilIcon, Trash2Icon, AlertTriangleIcon, PackageIcon, XIcon, CalendarIcon, CheckIcon, ListChecksIcon, ChevronUpIcon, ChevronDownIcon, GripVerticalIcon, ClipboardListIcon, EyeIcon, CreditCardIcon, FilterIcon, MegaphoneIcon } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import Link from "next/link"
@@ -156,7 +156,7 @@ function CampaignsPageContent() {
 
   // Create state
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-  const [createStep, setCreateStep] = useState(1)
+  const [createTab, setCreateTab] = useState('infos')
   const [createForm, setCreateForm] = useState({
     title: '',
     description: '',
@@ -166,9 +166,8 @@ function CampaignsPageContent() {
     marketplaceMode: 'PROCEDURES' as 'PROCEDURES' | 'AMAZON_DIRECT_LINK',
     marketplace: '',
     amazonLink: '',
-    keywords: [] as string[],
+    keyword: '',
   })
-  const [keywordInput, setKeywordInput] = useState('')
   const [selectedProduct, setSelectedProduct] = useState<{
     productId: string
     productName: string
@@ -566,6 +565,7 @@ function CampaignsPageContent() {
     reimbursedPrice: boolean
     reimbursedShipping: boolean
     bonus: number
+    quantity: number
   }>) => {
     if (selectedProduct) {
       setSelectedProduct({ ...selectedProduct, ...updates })
@@ -719,11 +719,19 @@ function CampaignsPageContent() {
   const handleCreateSave = async () => {
     if (!createForm.title.trim()) {
       toast.error('Le titre est requis')
+      setCreateTab('infos')
+      return
+    }
+
+    if (!createForm.description.trim()) {
+      toast.error('La description est requise')
+      setCreateTab('infos')
       return
     }
 
     if (!createForm.marketplace) {
       toast.error('Le marketplace est requis')
+      setCreateTab('infos')
       return
     }
 
@@ -768,8 +776,8 @@ function CampaignsPageContent() {
         createData.amazonLink = createForm.amazonLink
       }
 
-      if (createForm.keywords.length > 0) {
-        createData.keywords = createForm.keywords
+      if (createForm.keyword.trim()) {
+        createData.keywords = [createForm.keyword.trim()]
       }
 
       if (createForm.startDate) {
@@ -829,7 +837,7 @@ function CampaignsPageContent() {
 
       toast.success('Campagne créée avec succès')
       setIsCreateDialogOpen(false)
-      setCreateStep(1)
+      setCreateTab('infos')
       setCreateForm({
         title: '',
         description: '',
@@ -839,9 +847,8 @@ function CampaignsPageContent() {
         marketplaceMode: 'PROCEDURES' as 'PROCEDURES' | 'AMAZON_DIRECT_LINK',
         marketplace: '',
         amazonLink: '',
-        keywords: [],
+        keyword: '',
       })
-      setKeywordInput('')
       setSelectedProduct(null)
       setDistributions([])
       setSelectedTemplateId('')
@@ -945,396 +952,341 @@ function CampaignsPageContent() {
                 )}
       </div>
 
-      {/* Create Campaign Dialog - Multi-step Wizard */}
+      {/* Create Campaign Dialog - Tabs Layout */}
       <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
         setIsCreateDialogOpen(open)
         if (!open) {
-          setCreateStep(1)
+          setCreateTab('infos')
         }
       }}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[900px] max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                <PlusIcon className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <DialogTitle className="text-xl">Nouvelle campagne</DialogTitle>
-                <DialogDescription>
-                  {createStep === 1 ? 'Informations generales et produits' :
-                   createStep === 2 ? `Configuration des distributions${createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' ? ' (optionnel)' : ''}` :
-                   createStep === 3 ? 'Criteres d\'eligibilite' :
-                   `Selection de la procedure${createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' ? ' (optionnel)' : ''}`}
-                </DialogDescription>
-              </div>
-            </div>
+            <DialogTitle className="text-xl">Nouvelle campagne</DialogTitle>
+            <DialogDescription>
+              Configurez votre campagne de test produit
+            </DialogDescription>
           </DialogHeader>
 
-          {/* Step Indicators - Clickable for navigation */}
-          <div className="flex items-center justify-center gap-2 py-4">
-            <button
-              type="button"
-              onClick={() => setCreateStep(1)}
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-            >
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
-                createStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-              }`}>
-                {createStep > 1 ? <CheckIcon className="h-4 w-4" /> : '1'}
-              </div>
-              <span className={`text-sm hidden sm:inline ${createStep >= 1 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                Infos
-              </span>
-            </button>
-            <div className={`h-px w-4 ${createStep >= 2 ? 'bg-primary' : 'bg-muted'}`} />
-            <button
-              type="button"
-              onClick={() => {
-                if (!createForm.title.trim()) {
-                  toast.error('Le titre est requis pour passer a l\'etape suivante')
-                  return
-                }
-                if (!createForm.marketplace) {
-                  toast.error('Le marketplace est requis pour passer a l\'etape suivante')
-                  return
-                }
-                setCreateStep(2)
-              }}
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-            >
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
-                createStep >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-              }`}>
-                {createStep > 2 ? <CheckIcon className="h-4 w-4" /> : '2'}
-              </div>
-              <span className={`text-sm hidden sm:inline ${createStep >= 2 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                Distribution{createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && <span className="text-xs opacity-70"> (opt.)</span>}
-              </span>
-            </button>
-            <div className={`h-px w-4 ${createStep >= 3 ? 'bg-primary' : 'bg-muted'}`} />
-            <button
-              type="button"
-              onClick={() => {
-                if (!createForm.title.trim()) {
-                  toast.error('Le titre est requis pour passer a l\'etape suivante')
-                  return
-                }
-                if (!createForm.marketplace) {
-                  toast.error('Le marketplace est requis pour passer a l\'etape suivante')
-                  return
-                }
-                setCreateStep(3)
-              }}
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-            >
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
-                createStep >= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-              }`}>
-                {createStep > 3 ? <CheckIcon className="h-4 w-4" /> : '3'}
-              </div>
-              <span className={`text-sm hidden sm:inline ${createStep >= 3 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                Criteres
-              </span>
-            </button>
-            <div className={`h-px w-4 ${createStep >= 4 ? 'bg-primary' : 'bg-muted'}`} />
-            <button
-              type="button"
-              onClick={() => {
-                if (!createForm.title.trim()) {
-                  toast.error('Le titre est requis pour passer a l\'etape suivante')
-                  return
-                }
-                if (!createForm.marketplace) {
-                  toast.error('Le marketplace est requis pour passer a l\'etape suivante')
-                  return
-                }
-                setCreateStep(4)
-              }}
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-            >
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
-                createStep >= 4 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-              }`}>
-                4
-              </div>
-              <span className={`text-sm hidden sm:inline ${createStep >= 4 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                Procedure{createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && <span className="text-xs opacity-70"> (opt.)</span>}
-              </span>
-            </button>
-          </div>
+          <Tabs value={createTab} onValueChange={setCreateTab} className="flex-1 flex flex-col overflow-hidden">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="infos">Informations</TabsTrigger>
+              <TabsTrigger value="distribution">Distribution</TabsTrigger>
+              <TabsTrigger
+                value="procedure"
+                disabled={createForm.marketplaceMode !== 'PROCEDURES'}
+                className={createForm.marketplaceMode !== 'PROCEDURES' ? 'opacity-50' : ''}
+              >
+                Procedure
+              </TabsTrigger>
+              <TabsTrigger value="criteria">Criteres</TabsTrigger>
+            </TabsList>
 
-          {/* Step 1: Basic Info + Products */}
-          {createStep === 1 && (
-            <div className="grid gap-5 py-4 max-h-[400px] overflow-y-auto">
-              <div className="grid gap-2">
-                <Label htmlFor="create-title" className="text-sm font-medium">
-                  Titre de la campagne <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="create-title"
-                  placeholder="Ex: Test produit été 2024"
-                  value={createForm.title}
-                  onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
-                  className="h-10"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="create-description" className="text-sm font-medium">
-                  Description
-                </Label>
-                <Textarea
-                  id="create-description"
-                  placeholder="Décrivez votre campagne..."
-                  value={createForm.description}
-                  onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
-                  className="min-h-[80px] resize-none"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="create-marketplace" className="text-sm font-medium">
-                  Marketplace <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={createForm.marketplace}
-                  onValueChange={(value) => setCreateForm({ ...createForm, marketplace: value })}
-                >
-                  <SelectTrigger id="create-marketplace" className="h-10">
-                    <SelectValue placeholder="Sélectionnez un pays" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="FR">France (FR)</SelectItem>
-                    <SelectItem value="DE">Allemagne (DE)</SelectItem>
-                    <SelectItem value="UK">Royaume-Uni (UK)</SelectItem>
-                    <SelectItem value="US">États-Unis (US)</SelectItem>
-                    <SelectItem value="ES">Espagne (ES)</SelectItem>
-                    <SelectItem value="IT">Italie (IT)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="create-marketplaceMode" className="text-sm font-medium">
-                  Mode de campagne <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={createForm.marketplaceMode}
-                  onValueChange={(value: 'PROCEDURES' | 'AMAZON_DIRECT_LINK') => setCreateForm({ ...createForm, marketplaceMode: value })}
-                >
-                  <SelectTrigger id="create-marketplaceMode" className="h-10">
-                    <SelectValue placeholder="Sélectionnez un mode" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PROCEDURES">Procédures (avec étapes de validation)</SelectItem>
-                    <SelectItem value="AMAZON_DIRECT_LINK">Lien Amazon direct</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  {createForm.marketplaceMode === 'PROCEDURES'
-                    ? 'Les testeurs suivront des procédures définies avec plusieurs étapes de validation.'
-                    : 'Les testeurs recevront directement un lien Amazon pour commander le produit.'}
-                </p>
-              </div>
-              {createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && (
-                <div className="grid gap-2">
-                  <Label htmlFor="create-amazonLink" className="text-sm font-medium">
-                    Lien Amazon <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="create-amazonLink"
-                    type="url"
-                    placeholder="https://www.amazon.fr/dp/..."
-                    value={createForm.amazonLink}
-                    onChange={(e) => setCreateForm({ ...createForm, amazonLink: e.target.value })}
-                    className="h-10"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    URL complète du produit sur Amazon
-                  </p>
-                </div>
-              )}
-              <div className="grid gap-2">
-                <Label htmlFor="create-keywords" className="text-sm font-medium">
-                  Mots-clés (optionnel)
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="create-keywords"
-                    placeholder="Ajouter un mot-clé"
-                    value={keywordInput}
-                    onChange={(e) => setKeywordInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        const keyword = keywordInput.trim()
-                        if (keyword && !createForm.keywords.includes(keyword)) {
-                          setCreateForm({ ...createForm, keywords: [...createForm.keywords, keyword] })
-                          setKeywordInput('')
-                        }
-                      }
-                    }}
-                    className="h-10"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const keyword = keywordInput.trim()
-                      if (keyword && !createForm.keywords.includes(keyword)) {
-                        setCreateForm({ ...createForm, keywords: [...createForm.keywords, keyword] })
-                        setKeywordInput('')
-                      }
-                    }}
-                  >
-                    <PlusIcon className="h-4 w-4" />
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Appuyez sur Entrée ou cliquez sur + pour ajouter
-                </p>
-                {createForm.keywords.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {createForm.keywords.map((keyword, index) => (
-                      <Badge key={index} variant="secondary" className="gap-1">
-                        {keyword}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCreateForm({
-                              ...createForm,
-                              keywords: createForm.keywords.filter((_, i) => i !== index)
-                            })
-                          }}
-                          className="ml-1 hover:text-destructive"
-                        >
-                          <XIcon className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="create-startDate" className="text-sm font-medium">
-                    Date de début
-                  </Label>
-                  <Input
-                    id="create-startDate"
-                    type="date"
-                    value={createForm.startDate}
-                    onChange={(e) => setCreateForm({ ...createForm, startDate: e.target.value })}
-                    className="h-10"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="create-endDate" className="text-sm font-medium">
-                    Date de fin
-                  </Label>
-                  <Input
-                    id="create-endDate"
-                    type="date"
-                    value={createForm.endDate}
-                    onChange={(e) => setCreateForm({ ...createForm, endDate: e.target.value })}
-                    className="h-10"
-                  />
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label className="text-sm font-medium">
-                  Produits associés
-                </Label>
-                {products.length === 0 ? (
-                  <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground bg-muted/50 rounded-md">
-                    <PackageIcon className="h-4 w-4" />
-                    <span>Aucun produit disponible.</span>
-                    <Link href="/dashboard/products" className="text-primary hover:underline font-medium">
-                      Créer un produit
-                    </Link>
-                  </div>
-                ) : (
-                  <CampaignProductConfig
-                    products={products}
-                    selectedProduct={selectedProduct}
-                    onSelectProduct={handleSelectProduct}
-                    onUpdateProduct={handleUpdateProduct}
-                    onRemoveProduct={handleRemoveProduct}
-                  />
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: Distributions */}
-          {createStep === 2 && (
-            <div className="grid gap-5 py-4">
-              {createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && (
-                <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
-                  <CardContent className="p-4">
-                    <p className="text-sm text-blue-800 dark:text-blue-200">
-                      ℹ️ En mode <strong>Lien Amazon direct</strong>, les distributions sont optionnelles. Vous pouvez ignorer cette étape si vous ne souhaitez pas planifier de distributions spécifiques.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-              {/* Validation quantity vs distributions - Sticky en haut */}
-              <Card className="border-primary/20 bg-primary/5 sticky top-0 z-10">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label className="text-sm font-medium">
-                        {selectedProduct 
-                          ? `Produits: ${selectedProduct.quantity}` 
-                          : 'Aucun produit sélectionné'}
+            <div className="flex-1 overflow-y-auto py-4">
+              {/* Tab 1: Informations */}
+              <TabsContent value="infos" className="mt-0 space-y-6">
+                {/* Section 1: Infos campagne */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground uppercase tracking-wide">
+                    <MegaphoneIcon className="h-4 w-4" />
+                    Informations de la campagne
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2 grid gap-2">
+                      <Label htmlFor="create-title" className="text-sm font-medium">
+                        Titre <span className="text-destructive">*</span>
                       </Label>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Distributions créées: {distributions.length} ligne(s)
+                      <Input
+                        id="create-title"
+                        placeholder="Ex: Test produit ete 2024"
+                        value={createForm.title}
+                        onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+                        className="h-10"
+                      />
+                    </div>
+                    <div className="col-span-2 grid gap-2">
+                      <Label htmlFor="create-description" className="text-sm font-medium">
+                        Description <span className="text-destructive">*</span>
+                      </Label>
+                      <Textarea
+                        id="create-description"
+                        placeholder="Decrivez votre campagne..."
+                        value={createForm.description}
+                        onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                        className="min-h-[80px] resize-none"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="create-marketplace" className="text-sm font-medium">
+                        Marketplace <span className="text-destructive">*</span>
+                      </Label>
+                      <Select
+                        value={createForm.marketplace}
+                        onValueChange={(value) => setCreateForm({ ...createForm, marketplace: value })}
+                      >
+                        <SelectTrigger id="create-marketplace" className="h-10">
+                          <SelectValue placeholder="Selectionnez un pays" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="FR">France (FR)</SelectItem>
+                          <SelectItem value="DE">Allemagne (DE)</SelectItem>
+                          <SelectItem value="UK">Royaume-Uni (UK)</SelectItem>
+                          <SelectItem value="US">Etats-Unis (US)</SelectItem>
+                          <SelectItem value="ES">Espagne (ES)</SelectItem>
+                          <SelectItem value="IT">Italie (IT)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="create-marketplaceMode" className="text-sm font-medium">
+                        Mode de campagne <span className="text-destructive">*</span>
+                      </Label>
+                      <Select
+                        value={createForm.marketplaceMode}
+                        onValueChange={(value: 'PROCEDURES' | 'AMAZON_DIRECT_LINK') => setCreateForm({ ...createForm, marketplaceMode: value })}
+                      >
+                        <SelectTrigger id="create-marketplaceMode" className="h-10">
+                          <SelectValue placeholder="Selectionnez un mode" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PROCEDURES">Procedures (avec etapes)</SelectItem>
+                          <SelectItem value="AMAZON_DIRECT_LINK">Lien Amazon direct</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && (
+                      <div className="col-span-2 grid gap-2">
+                        <Label htmlFor="create-amazonLink" className="text-sm font-medium">
+                          Lien Amazon <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="create-amazonLink"
+                          type="url"
+                          placeholder="https://www.amazon.fr/dp/..."
+                          value={createForm.amazonLink}
+                          onChange={(e) => setCreateForm({ ...createForm, amazonLink: e.target.value })}
+                          className="h-10"
+                        />
+                      </div>
+                    )}
+                    <div className="col-span-2 grid gap-2">
+                      <Label htmlFor="create-keyword" className="text-sm font-medium">
+                        Mot cle
+                      </Label>
+                      <Input
+                        id="create-keyword"
+                        placeholder="Ex: casque bluetooth"
+                        value={createForm.keyword}
+                        onChange={(e) => setCreateForm({ ...createForm, keyword: e.target.value })}
+                        className="h-10"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Le mot cle que le testeur utilisera pour trouver votre produit
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {selectedProduct && (() => {
-                        const totalDistributed = distributions.reduce((sum, d) => sum + (d.maxUnits || 0), 0)
-                        return totalDistributed === selectedProduct.quantity ? (
-                          <Badge variant="default" className="bg-green-600">✓ Complet</Badge>
-                        ) : totalDistributed > selectedProduct.quantity ? (
-                          <Badge variant="destructive">
-                            Dépassement: +{totalDistributed - selectedProduct.quantity}
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="bg-orange-100 text-orange-800">
-                            {selectedProduct.quantity - totalDistributed} manquant(s)
-                          </Badge>
-                        )
-                      })()}
+                    <div className="grid gap-2">
+                      <Label htmlFor="create-startDate" className="text-sm font-medium">
+                        Date de debut
+                      </Label>
+                      <Input
+                        id="create-startDate"
+                        type="date"
+                        value={createForm.startDate}
+                        onChange={(e) => setCreateForm({ ...createForm, startDate: e.target.value })}
+                        className="h-10"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="create-endDate" className="text-sm font-medium">
+                        Date de fin
+                      </Label>
+                      <Input
+                        id="create-endDate"
+                        type="date"
+                        value={createForm.endDate}
+                        onChange={(e) => setCreateForm({ ...createForm, endDate: e.target.value })}
+                        className="h-10"
+                      />
                     </div>
                   </div>
-                  
-                  {selectedProduct && distributions.length > 0 && (() => {
-                    const totalDistributed = distributions.reduce((sum, d) => sum + (d.maxUnits || 0), 0)
-                    const remaining = selectedProduct.quantity - totalDistributed
-                    return (
-                      <div className="mt-3 pt-3 border-t flex justify-between text-sm">
-                        <span className="text-muted-foreground">Produits distribués:</span>
-                        <span className="font-medium">{totalDistributed}</span>
-                        {remaining < 0 ? (
-                          <span className="font-bold text-destructive">
-                            ⚠️ Dépassement de {Math.abs(remaining)} produit{Math.abs(remaining) > 1 ? 's' : ''}
-                          </span>
-                        ) : (
-                          <span className={`font-bold ${remaining === 0 ? 'text-green-600' : 'text-orange-500'}`}>
-                            Restants: {remaining}
-                          </span>
-                        )}
-                      </div>
-                    )
-                  })()}
-                </CardContent>
-              </Card>
+                </div>
 
-              <div className="grid gap-2">
+                <div className="border-t pt-6">
+                  {/* Section 2: Produit associe */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground uppercase tracking-wide">
+                      <PackageIcon className="h-4 w-4" />
+                      Produit associe
+                    </h3>
+                    {products.length === 0 ? (
+                      <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground bg-muted/50 rounded-lg border border-dashed">
+                        <PackageIcon className="h-5 w-5" />
+                        <span>Aucun produit disponible.</span>
+                        <Link href="/dashboard/pro/products" className="text-primary hover:underline font-medium">
+                          Creer un produit
+                        </Link>
+                      </div>
+                    ) : !selectedProduct ? (
+                      <Select onValueChange={handleSelectProduct}>
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Selectionner un produit..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {products.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              <div className="flex items-center gap-2">
+                                <PackageIcon className="h-4 w-4 text-muted-foreground" />
+                                <span>{p.name}</span>
+                                <span className="text-muted-foreground">- {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(p.price)}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <PackageIcon className="h-5 w-5 text-muted-foreground" />
+                            <div>
+                              <p className="font-medium">{products.find(p => p.id === selectedProduct.productId)?.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(products.find(p => p.id === selectedProduct.productId)?.price || 0)}
+                              </p>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="sm" onClick={handleRemoveProduct}>
+                            <XIcon className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label className="text-sm font-medium">Nombre d&apos;unites</Label>
+                            <Input
+                              type="number"
+                              min={1}
+                              value={selectedProduct.quantity}
+                              onChange={(e) => handleUpdateProduct({ quantity: parseInt(e.target.value) || 1 })}
+                              className="h-10"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label className="text-sm font-medium">Bonus par testeur</Label>
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                min={0}
+                                step={0.5}
+                                value={selectedProduct.bonus}
+                                onChange={(e) => handleUpdateProduct({ bonus: parseFloat(e.target.value) || 0 })}
+                                className="h-10 pr-8"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">EUR</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Cost Summary Card */}
+                        <Card className="bg-muted/30 border-muted">
+                          <CardContent className="p-4 space-y-3">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Remboursement produit</span>
+                              <span className="text-green-600 font-medium">Automatique</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Remboursement livraison</span>
+                              <span className="text-green-600 font-medium">Automatique</span>
+                            </div>
+                            <div className="border-t pt-3 space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Cout par testeur</span>
+                                <span>
+                                  {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
+                                    (products.find(p => p.id === selectedProduct.productId)?.price || 0) +
+                                    (products.find(p => p.id === selectedProduct.productId)?.shippingCost || 0) +
+                                    selectedProduct.bonus
+                                  )}
+                                </span>
+                              </div>
+                              <div className="flex justify-between font-semibold text-base">
+                                <span>Cout total de la campagne</span>
+                                <span className="text-primary">
+                                  {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
+                                    ((products.find(p => p.id === selectedProduct.productId)?.price || 0) +
+                                    (products.find(p => p.id === selectedProduct.productId)?.shippingCost || 0) +
+                                    selectedProduct.bonus) * selectedProduct.quantity
+                                  )}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                ({selectedProduct.quantity} unite{selectedProduct.quantity > 1 ? 's' : ''} x {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
+                                  (products.find(p => p.id === selectedProduct.productId)?.price || 0) +
+                                  (products.find(p => p.id === selectedProduct.productId)?.shippingCost || 0) +
+                                  selectedProduct.bonus
+                                )})
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Tab 2: Distribution */}
+              <TabsContent value="distribution" className="mt-0 space-y-4">
+                {createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && (
+                  <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
+                    <CardContent className="p-4">
+                      <p className="text-sm text-blue-800 dark:text-blue-200">
+                        En mode <strong>Lien Amazon direct</strong>, les distributions sont optionnelles.
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Summary Card */}
+                <Card className="border-primary/20 bg-primary/5">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-sm font-medium">
+                          {selectedProduct
+                            ? `Produits: ${selectedProduct.quantity}`
+                            : 'Aucun produit selectionne'}
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Distributions creees: {distributions.length} ligne(s)
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {selectedProduct && (() => {
+                          const totalDistributed = distributions.reduce((sum, d) => sum + (d.maxUnits || 0), 0)
+                          return totalDistributed === selectedProduct.quantity ? (
+                            <Badge variant="default" className="bg-green-600">Complet</Badge>
+                          ) : totalDistributed > selectedProduct.quantity ? (
+                            <Badge variant="destructive">
+                              Depassement: +{totalDistributed - selectedProduct.quantity}
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+                              {selectedProduct.quantity - totalDistributed} manquant(s)
+                            </Badge>
+                          )
+                        })()}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">
-                    Dates de distribution
-                  </Label>
+                  <div>
+                    <Label className="text-sm font-medium">Dates de distribution</Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Definissez quand et combien de produits seront distribues
+                    </p>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
@@ -1349,247 +1301,97 @@ function CampaignsPageContent() {
                     }}
                   >
                     <PlusIcon className="mr-2 h-4 w-4" />
-                    Ajouter
+                    Ajouter une date
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Définissez quand et combien de produits seront distribués
-                </p>
-              </div>
 
-              {distributions.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center bg-muted/50 rounded-md">
-                  <CalendarIcon className="h-8 w-8 text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    Aucune distribution configurée
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Vous pouvez ajouter des distributions plus tard
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-hidden rounded-lg border max-h-[300px] overflow-y-auto">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-background z-10">
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead className="w-[100px]">Quantité</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {distributions.map((dist, index) => (
-                        <TableRow key={index}>
-                          <TableCell>
-                            <Input
-                              type="date"
-                              value={dist.specificDate || ''}
-                              onChange={(e) => {
-                                const newDist = [...distributions]
-                                newDist[index].specificDate = e.target.value
-                                setDistributions(newDist)
-                              }}
-                              className="h-8"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              value={dist.maxUnits}
-                              onChange={(e) => {
-                                const value = e.target.value.replace(/[^0-9]/g, '')
-                                const newDist = [...distributions]
-                                newDist[index].maxUnits = parseInt(value) || 0
-                                setDistributions(newDist)
-                              }}
-                              className="h-8 w-20 text-center"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              onClick={() => {
-                                setDistributions(distributions.filter((_, i) => i !== index))
-                              }}
-                            >
-                              <XIcon className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Step 3: Criteria */}
-          {createStep === 3 && (
-            <div className="grid gap-5 py-4 max-h-[400px] overflow-y-auto">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-medium">Criteres d&apos;eligibilite</Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Choisissez un template ou configurez manuellement
-                  </p>
-                </div>
-                <Link href="/dashboard/criteria-templates">
-                  <Button type="button" variant="outline" size="sm">
-                    <PlusIcon className="mr-2 h-4 w-4" />
-                    Gerer les templates
-                  </Button>
-                </Link>
-              </div>
-
-              <Tabs value={createCriteriaMode} onValueChange={(v) => setCreateCriteriaMode(v as 'manual' | 'template')}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="template">Template</TabsTrigger>
-                  <TabsTrigger value="manual">Manuel</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="template" className="mt-4">
-                  {criteriaTemplates.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-8 text-center bg-muted/50 rounded-md">
-                      <FilterIcon className="h-8 w-8 text-muted-foreground mb-2" />
-                      <p className="text-sm text-muted-foreground">
-                        Aucun template de criteres disponible
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Vous pouvez en creer dans la section Criteres
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="overflow-hidden rounded-lg border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Template</TableHead>
-                            <TableHead className="w-[50px]"></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {criteriaTemplates.map((template) => (
-                            <TableRow
-                              key={template.id}
-                              className={createSelectedCriteriaTemplateId === template.id ? 'bg-primary/5' : ''}
-                            >
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <FilterIcon className="h-4 w-4 text-muted-foreground" />
-                                  <span className="font-medium">{template.name}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  type="button"
-                                  variant={createSelectedCriteriaTemplateId === template.id ? "default" : "ghost"}
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => {
-                                    if (createSelectedCriteriaTemplateId === template.id) {
-                                      setCreateSelectedCriteriaTemplateId('')
-                                      setCreateCriteria({})
-                                    } else {
-                                      setCreateSelectedCriteriaTemplateId(template.id)
-                                      // Load criteria from template
-                                      setCreateCriteria({
-                                        minAge: template.minAge,
-                                        maxAge: template.maxAge,
-                                        minRating: template.minRating ? Number(template.minRating) : null,
-                                        maxRating: template.maxRating ? Number(template.maxRating) : null,
-                                        minCompletedSessions: template.minCompletedSessions,
-                                        requiredGender: template.requiredGender,
-                                        requiredCountries: template.requiredCountries,
-                                        requiredLocations: template.requiredLocations,
-                                        excludedLocations: template.excludedLocations,
-                                        requiredCategories: template.requiredCategories,
-                                        noActiveSessionWithSeller: template.noActiveSessionWithSeller,
-                                        maxSessionsPerWeek: template.maxSessionsPerWeek,
-                                        maxSessionsPerMonth: template.maxSessionsPerMonth,
-                                        minCompletionRate: template.minCompletionRate ? Number(template.minCompletionRate) : null,
-                                        maxCancellationRate: template.maxCancellationRate ? Number(template.maxCancellationRate) : null,
-                                        minAccountAge: template.minAccountAge,
-                                        lastActiveWithinDays: template.lastActiveWithinDays,
-                                        requireVerified: template.requireVerified,
-                                        requirePrime: template.requirePrime,
-                                      })
-                                    }
-                                  }}
-                                >
-                                  {createSelectedCriteriaTemplateId === template.id ? (
-                                    <CheckIcon className="h-4 w-4" />
-                                  ) : (
-                                    <PlusIcon className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="manual" className="mt-4">
-                  <CampaignCriteriaConfig
-                    criteria={createCriteria}
-                    onUpdateCriteria={(updates) => setCreateCriteria({ ...createCriteria, ...updates })}
-                  />
-                </TabsContent>
-              </Tabs>
-            </div>
-          )}
-
-          {/* Step 4: Procedure Selection or Creation */}
-          {createStep === 4 && (
-            <div className="grid gap-5 py-4 max-h-[400px] overflow-y-auto">
-              {createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && (
-                <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
-                  <CardContent className="p-4">
-                    <p className="text-sm text-blue-800 dark:text-blue-200">
-                      ℹ️ En mode <strong>Lien Amazon direct</strong>, les procédures sont optionnelles. Les testeurs commanderont directement via le lien Amazon que vous avez fourni. Vous pouvez ignorer cette étape.
+                {distributions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center bg-muted/50 rounded-lg border border-dashed">
+                    <CalendarIcon className="h-10 w-10 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">
+                      Aucune distribution configuree
                     </p>
-                  </CardContent>
-                </Card>
-              )}
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-medium">Procedure de test</Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Choisissez un template existant ou ignorez cette etape
-                  </p>
-                </div>
-                <Link href="/dashboard/procedures">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                  >
-                    <PlusIcon className="mr-2 h-4 w-4" />
-                    Creer une procedure
-                  </Button>
-                </Link>
-              </div>
+                    <p className="text-xs text-muted-foreground">
+                      Cliquez sur &quot;Ajouter une date&quot; pour commencer
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-hidden rounded-lg border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead className="w-[120px]">Quantite</TableHead>
+                          <TableHead className="w-[60px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {distributions.map((dist, index) => (
+                          <TableRow key={index}>
+                            <TableCell>
+                              <Input
+                                type="date"
+                                value={dist.specificDate || ''}
+                                onChange={(e) => {
+                                  const newDist = [...distributions]
+                                  newDist[index].specificDate = e.target.value
+                                  setDistributions(newDist)
+                                }}
+                                className="h-9"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                min={1}
+                                value={dist.maxUnits}
+                                onChange={(e) => {
+                                  const newDist = [...distributions]
+                                  newDist[index].maxUnits = parseInt(e.target.value) || 1
+                                  setDistributions(newDist)
+                                }}
+                                className="h-9 w-20 text-center"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                onClick={() => {
+                                  setDistributions(distributions.filter((_, i) => i !== index))
+                                }}
+                              >
+                                <XIcon className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </TabsContent>
 
-              <div className="grid gap-4">
-                <div className="grid gap-4">
+          {/* Tab 3: Procedure */}
+              <TabsContent value="procedure" className="mt-0 space-y-4">
+                <Tabs value={procedureMode} onValueChange={(v) => setProcedureMode(v as 'template' | 'create')}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="template">Template existant</TabsTrigger>
+                    <TabsTrigger value="create">Creer une procedure</TabsTrigger>
+                  </TabsList>
 
+                  <TabsContent value="template" className="mt-4">
                     {procedureTemplates.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-8 text-center bg-muted/50 rounded-md">
-                        <ListChecksIcon className="h-8 w-8 text-muted-foreground mb-2" />
+                      <div className="flex flex-col items-center justify-center py-12 text-center bg-muted/50 rounded-lg border border-dashed">
+                        <ListChecksIcon className="h-10 w-10 text-muted-foreground mb-3" />
                         <p className="text-sm text-muted-foreground">
                           Aucun template de procedure disponible
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          Vous pouvez en creer dans la section Procedures
-                        </p>
+                        <Link href="/dashboard/pro/procedures" className="text-primary hover:underline text-sm mt-2">
+                          Creer un template
+                        </Link>
                       </div>
                     ) : (
                       <div className="overflow-hidden rounded-lg border">
@@ -1598,7 +1400,7 @@ function CampaignsPageContent() {
                             <TableRow>
                               <TableHead>Template</TableHead>
                               <TableHead className="w-[80px]">Etapes</TableHead>
-                              <TableHead className="w-[50px]"></TableHead>
+                              <TableHead className="w-[60px]"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1614,9 +1416,7 @@ function CampaignsPageContent() {
                                   </div>
                                 </TableCell>
                                 <TableCell>
-                                  <Badge variant="outline">
-                                    {template.steps.length}
-                                  </Badge>
+                                  <Badge variant="outline">{template.steps.length}</Badge>
                                 </TableCell>
                                 <TableCell>
                                   <Button
@@ -1641,71 +1441,274 @@ function CampaignsPageContent() {
                         </Table>
                       </div>
                     )}
-                  </div>
-                </div>
-            </div>
-          )}
+                  </TabsContent>
 
-          <DialogFooter className="gap-2 sm:gap-0">
-            {createStep === 1 ? (
-              <>
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Annuler
-                </Button>
-                <Button
-                  onClick={() => {
-                    if (!createForm.title.trim()) {
-                      toast.error('Le titre est requis')
-                      return
-                    }
-                    if (!createForm.marketplace) {
-                      toast.error('Le marketplace est requis')
-                      return
-                    }
-                    setCreateStep(2)
-                  }}
-                >
-                  Suivant
-                </Button>
-              </>
-            ) : createStep === 2 ? (
-              <>
-                <Button variant="outline" onClick={() => setCreateStep(1)}>
-                  Retour
-                </Button>
-                <Button onClick={() => setCreateStep(3)}>
-                  Suivant
-                </Button>
-              </>
-            ) : createStep === 3 ? (
-              <>
-                <Button variant="outline" onClick={() => setCreateStep(2)}>
-                  Retour
-                </Button>
-                <Button onClick={() => setCreateStep(4)}>
-                  Suivant
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="outline" onClick={() => setCreateStep(3)}>
-                  Retour
-                </Button>
-                <Button onClick={handleCreateSave} disabled={isCreating}>
-                  {isCreating ? (
-                    <>
-                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      Creation...
-                    </>
-                  ) : (
-                    <>
+                  <TabsContent value="create" className="mt-4 space-y-4">
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <Label className="text-sm font-medium">Titre de la procedure</Label>
+                        <Input
+                          placeholder="Ex: Procedure de test standard"
+                          value={inlineProcedure.title}
+                          onChange={(e) => setInlineProcedure({ ...inlineProcedure, title: e.target.value })}
+                          className="h-10"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label className="text-sm font-medium">Description</Label>
+                        <Textarea
+                          placeholder="Decrivez la procedure..."
+                          value={inlineProcedure.description}
+                          onChange={(e) => setInlineProcedure({ ...inlineProcedure, description: e.target.value })}
+                          className="min-h-[60px] resize-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">Etapes de la procedure</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setInlineSteps([...inlineSteps, {
+                              title: '',
+                              description: '',
+                              type: 'TEXT',
+                              isRequired: true,
+                              checklistItems: [],
+                            }])
+                          }}
+                        >
+                          <PlusIcon className="mr-2 h-4 w-4" />
+                          Ajouter une etape
+                        </Button>
+                      </div>
+
+                      {inlineSteps.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-8 text-center bg-muted/50 rounded-lg border border-dashed">
+                          <ListChecksIcon className="h-8 w-8 text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground">
+                            Aucune etape ajoutee
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3 max-h-[250px] overflow-y-auto">
+                          {inlineSteps.map((step, index) => (
+                            <Card key={index} className="p-4">
+                              <div className="flex items-start gap-3">
+                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-medium shrink-0">
+                                  {index + 1}
+                                </div>
+                                <div className="flex-1 space-y-3">
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      placeholder="Titre de l'etape"
+                                      value={step.title}
+                                      onChange={(e) => {
+                                        const newSteps = [...inlineSteps]
+                                        newSteps[index].title = e.target.value
+                                        setInlineSteps(newSteps)
+                                      }}
+                                      className="h-9 flex-1"
+                                    />
+                                    <Select
+                                      value={step.type}
+                                      onValueChange={(value: StepType) => {
+                                        const newSteps = [...inlineSteps]
+                                        newSteps[index].type = value
+                                        setInlineSteps(newSteps)
+                                      }}
+                                    >
+                                      <SelectTrigger className="h-9 w-[130px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {STEP_TYPES.map((t) => (
+                                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                                      onClick={() => {
+                                        setInlineSteps(inlineSteps.filter((_, i) => i !== index))
+                                      }}
+                                    >
+                                      <XIcon className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                  <Textarea
+                                    placeholder="Description de l'etape"
+                                    value={step.description}
+                                    onChange={(e) => {
+                                      const newSteps = [...inlineSteps]
+                                      newSteps[index].description = e.target.value
+                                      setInlineSteps(newSteps)
+                                    }}
+                                    className="min-h-[50px] resize-none text-sm"
+                                  />
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      checked={step.isRequired}
+                                      onCheckedChange={(checked) => {
+                                        const newSteps = [...inlineSteps]
+                                        newSteps[index].isRequired = checked
+                                        setInlineSteps(newSteps)
+                                      }}
+                                    />
+                                    <Label className="text-xs text-muted-foreground">Obligatoire</Label>
+                                  </div>
+                                </div>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </TabsContent>
+
+              {/* Tab 4: Criteria */}
+              <TabsContent value="criteria" className="mt-0 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-medium">Criteres d&apos;eligibilite</Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Choisissez un template ou configurez manuellement
+                    </p>
+                  </div>
+                  <Link href="/dashboard/pro/criteria-templates">
+                    <Button type="button" variant="outline" size="sm">
                       <PlusIcon className="mr-2 h-4 w-4" />
-                      Creer la campagne
-                    </>
-                  )}
-                </Button>
-              </>
-            )}
+                      Gerer les templates
+                    </Button>
+                  </Link>
+                </div>
+
+                <Tabs value={createCriteriaMode} onValueChange={(v) => setCreateCriteriaMode(v as 'manual' | 'template')}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="template">Template</TabsTrigger>
+                    <TabsTrigger value="manual">Manuel</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="template" className="mt-4">
+                    {criteriaTemplates.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center bg-muted/50 rounded-lg border border-dashed">
+                        <FilterIcon className="h-10 w-10 text-muted-foreground mb-3" />
+                        <p className="text-sm text-muted-foreground">
+                          Aucun template de criteres disponible
+                        </p>
+                        <Link href="/dashboard/pro/criteria-templates" className="text-primary hover:underline text-sm mt-2">
+                          Creer un template
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="overflow-hidden rounded-lg border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Template</TableHead>
+                              <TableHead className="w-[60px]"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {criteriaTemplates.map((template) => (
+                              <TableRow
+                                key={template.id}
+                                className={createSelectedCriteriaTemplateId === template.id ? 'bg-primary/5' : ''}
+                              >
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <FilterIcon className="h-4 w-4 text-muted-foreground" />
+                                    <span className="font-medium">{template.name}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    type="button"
+                                    variant={createSelectedCriteriaTemplateId === template.id ? "default" : "ghost"}
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => {
+                                      if (createSelectedCriteriaTemplateId === template.id) {
+                                        setCreateSelectedCriteriaTemplateId('')
+                                        setCreateCriteria({})
+                                      } else {
+                                        setCreateSelectedCriteriaTemplateId(template.id)
+                                        setCreateCriteria({
+                                          minAge: template.minAge,
+                                          maxAge: template.maxAge,
+                                          minRating: template.minRating ? Number(template.minRating) : null,
+                                          maxRating: template.maxRating ? Number(template.maxRating) : null,
+                                          minCompletedSessions: template.minCompletedSessions,
+                                          requiredGender: template.requiredGender,
+                                          requiredCountries: template.requiredCountries,
+                                          requiredLocations: template.requiredLocations,
+                                          excludedLocations: template.excludedLocations,
+                                          requiredCategories: template.requiredCategories,
+                                          noActiveSessionWithSeller: template.noActiveSessionWithSeller,
+                                          maxSessionsPerWeek: template.maxSessionsPerWeek,
+                                          maxSessionsPerMonth: template.maxSessionsPerMonth,
+                                          minCompletionRate: template.minCompletionRate ? Number(template.minCompletionRate) : null,
+                                          maxCancellationRate: template.maxCancellationRate ? Number(template.maxCancellationRate) : null,
+                                          minAccountAge: template.minAccountAge,
+                                          lastActiveWithinDays: template.lastActiveWithinDays,
+                                          requireVerified: template.requireVerified,
+                                          requirePrime: template.requirePrime,
+                                        })
+                                      }
+                                    }}
+                                  >
+                                    {createSelectedCriteriaTemplateId === template.id ? (
+                                      <CheckIcon className="h-4 w-4" />
+                                    ) : (
+                                      <PlusIcon className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="manual" className="mt-4">
+                    <CampaignCriteriaConfig
+                      criteria={createCriteria}
+                      onUpdateCriteria={(updates) => setCreateCriteria({ ...createCriteria, ...updates })}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </TabsContent>
+            </div>
+          </Tabs>
+
+          <DialogFooter className="border-t pt-4">
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleCreateSave} disabled={isCreating}>
+              {isCreating ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Creation...
+                </>
+              ) : (
+                <>
+                  <PlusIcon className="mr-2 h-4 w-4" />
+                  Creer la campagne
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
