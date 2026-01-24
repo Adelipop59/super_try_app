@@ -9,7 +9,7 @@ import {
   LayoutDashboardIcon,
   ListChecksIcon,
   MegaphoneIcon,
-  PackageIcon,
+  ChevronDown,
   SettingsIcon,
   TestTubeIcon,
   WalletIcon,
@@ -27,6 +27,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+
 import { useAuth } from "@/contexts/auth-context"
 
 // Navigation pour les utilisateurs PRO
@@ -38,8 +39,25 @@ const proNavMain = [
   },
   {
     title: "Campaigns",
-    url: "/dashboard/pro/campaigns",
     icon: MegaphoneIcon,
+    children: [
+      {
+        title: "Campagnes",
+        url: "/dashboard/pro/campaigns",
+      },
+      {
+        title: "Produits",
+        url: "/dashboard/pro/products",
+      },
+      {
+        title: "Procédures",
+        url: "/dashboard/pro/procedures",
+      },
+      {
+        title: "Critères",
+        url: "/dashboard/pro/criteria-templates",
+      },
+    ],
   },
   {
     title: "Sessions",
@@ -47,26 +65,12 @@ const proNavMain = [
     icon: TestTubeIcon,
   },
   {
-    title: "Procedures",
-    url: "/dashboard/pro/procedures",
-    icon: ListChecksIcon,
-  },
-  {
-    title: "Criteres",
-    url: "/dashboard/pro/criteria-templates",
-    icon: FilterIcon,
-  },
-  {
-    title: "Products",
-    url: "/dashboard/pro/products",
-    icon: PackageIcon,
-  },
-  {
     title: "Mes paiements",
     url: "/dashboard/pro/payments",
     icon: CreditCardIcon,
   },
 ]
+
 
 // Navigation pour les utilisateurs standard (testeurs)
 const userNavMain = [
