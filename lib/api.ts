@@ -80,11 +80,20 @@ export interface Session {
   cancelReason?: string
   disputeReason?: string
   disputeDescription?: string
+
+  // Price validation tracking
+  validatedProductPrice?: number
+  priceValidatedAt?: string
+  priceValidationAttempts?: number
+  productTitleSubmitted?: string
+  productTitleSubmittedAt?: string
+
   campaign?: {
     id: string
     title: string
     description?: string
     procedures?: Procedure[]
+    products?: CampaignProduct[]
   }
   tester?: {
     id: string
@@ -105,6 +114,7 @@ export interface ApplyToCampaignData {
 
 export interface ValidatePriceData {
   productPrice: number
+  productTitle?: string
 }
 
 export interface SubmitPurchaseData {
@@ -361,6 +371,7 @@ export interface CreateWithdrawalData {
 
 export interface CampaignProduct {
   productId: string
+  productName: string
   quantity: number
   expectedPrice?: number
   shippingCost?: number
@@ -399,6 +410,8 @@ export interface CampaignCriteria {
   requirePrime?: boolean | null
 }
 
+export type CampaignMarketplaceMode = 'PROCEDURES' | 'AMAZON_DIRECT_LINK'
+
 export interface Campaign {
   id: string
   title: string
@@ -408,7 +421,10 @@ export interface Campaign {
   usedSlots: number
   startDate?: string
   endDate?: string
+  marketplaceMode?: CampaignMarketplaceMode
   marketplace?: string
+  amazonLink?: string
+  keywords?: string[]
   products?: CampaignProduct[]
   criteria?: CampaignCriteria | null
   createdAt: string
@@ -1092,7 +1108,10 @@ class ApiClient {
     startDate?: string
     endDate?: string
     totalSlots: number
+    marketplaceMode?: CampaignMarketplaceMode
     marketplace?: string
+    amazonLink?: string
+    keywords?: string[]
     products?: {
       productId: string
       quantity: number

@@ -18,6 +18,7 @@ import Link from "next/link"
 
 interface ProductConfig {
   productId: string
+  productName: string
   quantity: number
   expectedPrice: number
   shippingCost: number
@@ -139,10 +140,28 @@ export function CampaignProductConfig({
             </Button>
           </div>
         </div>
-        
+
         <p className="text-xs text-muted-foreground mb-4 -mt-2">
           Chaque testeur reçoit 1 produit. Ce nombre correspond aussi au nombre de distributions à créer.
         </p>
+
+        {/* Nom exact du produit */}
+        <div className="mb-4">
+          <Label htmlFor="productName" className="text-sm font-medium">
+            Nom exact du produit <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            id="productName"
+            placeholder="Ex: iPhone 15 Pro Max 256GB Titane Naturel"
+            value={selectedProduct?.productName || ''}
+            onChange={(e) => onUpdateProduct({ productName: e.target.value })}
+            maxLength={500}
+            className="h-9 mt-1"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Le nom exact tel qu'il apparaît sur le site marchand (Amazon, etc.)
+          </p>
+        </div>
 
         {/* Bonus */}
         <div className="mb-4">

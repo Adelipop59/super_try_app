@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
-import { AlertCircle, CheckCircle2, Euro } from 'lucide-react'
+import { AlertCircle, AlertTriangle, CheckCircle2, Euro, Info } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { toast } from 'sonner'
 
 interface ValidatePriceStepProps {
@@ -24,6 +25,10 @@ export function ValidatePriceStep({
 }: ValidatePriceStepProps) {
   const [price, setPrice] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [attempts, setAttempts] = useState(session.priceValidationAttempts || 0)
+  const [showTitleInput, setShowTitleInput] = useState(attempts >= 2)
+  const [productTitle, setProductTitle] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
   const validatePrice = (priceValue: number): { valid: boolean; error?: string } => {
     if (priceValue <= 0) {
@@ -48,17 +53,31 @@ export function ValidatePriceStep({
   }
 
   const handleSubmit = async () => {
+    setError(null)
     const priceValue = parseFloat(price)
 
     if (isNaN(priceValue)) {
+      const errorMsg = 'Veuillez entrer un prix valide'
+      setError(errorMsg)
       toast.error('Prix invalide', {
-        description: 'Veuillez entrer un prix valide',
+        description: errorMsg,
+      })
+      return
+    }
+
+    // Si on affiche le champ titre, le titre est requis
+    if (showTitleInput && !productTitle.trim()) {
+      const errorMsg = 'Le titre du produit est requis après 2 tentatives'
+      setError(errorMsg)
+      toast.error('Titre requis', {
+        description: errorMsg,
       })
       return
     }
 
     const validation = validatePrice(priceValue)
     if (!validation.valid) {
+      setError(validation.error)
       toast.error('Prix invalide', {
         description: validation.error,
       })
@@ -68,17 +87,46 @@ export function ValidatePriceStep({
     setIsSubmitting(true)
 
     try {
-      await api.validatePrice(session.id, { productPrice: priceValue })
+      // Préparer les données
+      const data: { productPrice: number; productTitle?: string } = {
+        productPrice: priceValue,
+      }
+
+      if (showTitleInput && productTitle.trim()) {
+        data.productTitle = productTitle.trim()
+      }
+
+      // Appeler l'API
+      await api.validatePrice(session.id, data)
 
       toast.success('Prix validé', {
         description: `Le prix de ${priceValue}€ a été validé avec succès`,
       })
 
       onComplete()
-    } catch (error) {
+    } catch (error: any) {
+      const errorMessage = error.message || 'Impossible de valider le prix. Veuillez réessayer.'
+      setError(errorMessage)
+
+      // Si l'erreur indique qu'on a épuisé les tentatives, afficher le champ titre
+      if (errorMessage.includes('2 tentatives') || errorMessage.includes('épuisé')) {
+        setShowTitleInput(true)
+        setAttempts(2)
+      } else {
+        // Incrémenter localement le compteur de tentatives (sera confirmé par le serveur)
+        const match = errorMessage.match(/Tentative (\d+)\/2/)
+        if (match) {
+          const currentAttempt = parseInt(match[1])
+          setAttempts(currentAttempt)
+          if (currentAttempt >= 2) {
+            setShowTitleInput(true)
+          }
+        }
+      }
+
       console.error('Error validating price:', error)
       toast.error('Erreur', {
-        description: 'Impossible de valider le prix. Veuillez réessayer.',
+        description: errorMessage,
       })
     } finally {
       setIsSubmitting(false)
@@ -108,6 +156,26 @@ export function ValidatePriceStep({
                 fourchette attendue.
               </p>
             </div>
+
+            {/* Product Name Display */}
+            {session.campaign?.products?.[0]?.productName && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950 p-4">
+                <div className="flex items-start gap-3">
+                  <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">
+                      Produit à rechercher
+                    </p>
+                    <p className="text-base font-semibold text-blue-900 dark:text-blue-100">
+                      {session.campaign.products[0].productName}
+                    </p>
+                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
+                      Cherchez exactement ce produit sur la marketplace. Le prix doit correspondre.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Price Range Display */}
             {(minPrice !== undefined || maxPrice !== undefined) && (
@@ -155,6 +223,13 @@ export function ValidatePriceStep({
                 </Button>
               </div>
 
+              {/* Attempts Counter */}
+              {attempts > 0 && attempts < 2 && (
+                <p className="text-xs text-orange-600 mt-1">
+                  Tentative {attempts}/2
+                </p>
+              )}
+
               {/* Validation Feedback */}
               {price && !isNaN(priceValue) && (
                 <div className="flex items-start gap-2 mt-2">
@@ -174,6 +249,50 @@ export function ValidatePriceStep({
                 </div>
               )}
             </div>
+
+            {/* Product Title Input (after 2 failures) */}
+            {showTitleInput && (
+              <div className="space-y-2">
+                <div className="rounded-lg border border-orange-200 bg-orange-50 dark:bg-orange-950 p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-orange-800 dark:text-orange-200 mb-2">
+                        Vous avez épuisé vos 2 tentatives de validation du prix.
+                      </p>
+                      <p className="text-xs text-orange-700 dark:text-orange-300 mb-3">
+                        Pour continuer, veuillez saisir le titre complet du produit que vous avez trouvé.
+                        Cela permettra au vendeur de vérifier si c'est le bon produit ou si le prix dans
+                        la campagne doit être corrigé.
+                      </p>
+                      <Label htmlFor="productTitle" className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                        Titre du produit trouvé <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="productTitle"
+                        type="text"
+                        value={productTitle}
+                        onChange={(e) => setProductTitle(e.target.value)}
+                        placeholder="Ex: iPhone 15 Pro Max 256GB Titane Naturel"
+                        className="mt-2"
+                        maxLength={500}
+                        disabled={isSubmitting}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Copiez exactement le titre tel qu'il apparaît sur le site marchand
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
             {/* Help Text */}
             <div className="bg-blue-100 rounded-lg p-3">

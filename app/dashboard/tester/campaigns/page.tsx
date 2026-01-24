@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { api, EligibleCampaign, EligibleCampaignFull, EligibleCampaignLimited, PaginationMeta } from "@/lib/api"
+import { api, EligibleCampaign, EligibleCampaignFull, PaginationMeta } from "@/lib/api"
 import { useErrorHandler } from "@/hooks/use-error-handler"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -13,20 +13,17 @@ import { ApplyCampaignDialog } from "@/components/apply-campaign-dialog"
 import {
   RocketIcon,
   ShieldCheckIcon,
-  AlertCircleIcon,
-  TrendingUpIcon,
   PackageIcon,
   CalendarIcon,
-  UsersIcon,
-  ShoppingBagIcon,
-  LockIcon
+  LockIcon,
+  EuroIcon,
+  TruckIcon,
+  SparklesIcon,
 } from "lucide-react"
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
 
 export default function CampaignsPage() {
   const { user } = useAuth()
-  const router = useRouter()
   const { handleErrorWithRetry } = useErrorHandler()
   const [campaigns, setCampaigns] = useState<EligibleCampaign[]>([])
   const [loading, setLoading] = useState(true)
@@ -102,316 +99,280 @@ export default function CampaignsPage() {
         </p>
       </div>
 
-      {/* KYC Status Banner - Auto-fetches from backend, hides if verified */}
-      <div className="px-4 lg:px-6">
-        <KycVerificationBanner
-          verificationStatus={user?.verificationStatus}
-          autoFetch={true}
-          hideIfVerified={true}
-          onStatusChange={() => window.location.reload()}
-        />
-      </div>
-
-      {/* Campaigns Stats */}
-      {pagination && (
-        <div className="grid gap-4 px-4 md:grid-cols-3 lg:px-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Campagnes disponibles</CardTitle>
-              <PackageIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{pagination.total}</div>
-              <p className="text-xs text-muted-foreground">
-                {!kycStatus ? "" : isKycVerified ? "Toutes les campagnes" : "Limité à 50 campagnes"}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Page actuelle</CardTitle>
-              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {currentPage} / {pagination.totalPages}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {campaigns.length} campagne(s) affichée(s)
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Statut KYC</CardTitle>
-              <ShieldCheckIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {!kycStatus ? (
-                  <Badge variant="outline">Chargement...</Badge>
-                ) : kycStatus === 'verified' ? (
-                  <Badge className="bg-green-600">Vérifié</Badge>
-                ) : kycStatus === 'pending' ? (
-                  <Badge className="bg-blue-600">En cours</Badge>
-                ) : kycStatus === 'failed' ? (
-                  <Badge className="bg-red-600">Échec</Badge>
-                ) : (
-                  <Badge className="bg-orange-600">Non vérifié</Badge>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                {!kycStatus ? "Vérification du statut..." : isKycVerified ? "Accès complet" : "Accès limité"}
-              </p>
-            </CardContent>
-          </Card>
+      {/* KYC Banner */}
+      {!isKycVerified && (
+        <div className="px-4 lg:px-6">
+          <KycVerificationBanner onStatusChange={() => {
+            fetchKycStatus()
+            fetchCampaigns(currentPage)
+          }} />
         </div>
       )}
 
-      {/* Campaigns List */}
+      {/* Stats */}
       <div className="px-4 lg:px-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Liste des campagnes</CardTitle>
-            <CardDescription>
-              {!kycStatus
-                ? "Chargement des campagnes..."
-                : isKycVerified
-                ? "Toutes les campagnes éligibles pour vous"
-                : "Aperçu des campagnes - Vérifiez votre identité pour voir plus de détails"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex gap-4 p-4 rounded-lg border">
-                    <Skeleton className="h-24 w-24 rounded-md" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-5 w-3/4" />
-                      <Skeleton className="h-4 w-1/2" />
-                      <Skeleton className="h-4 w-2/3" />
-                    </div>
-                  </div>
-                ))}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card className="border-purple-200 bg-purple-50/50">
+            <div className="p-4">
+              <div className="flex items-center gap-2">
+                <PackageIcon className="h-5 w-5 text-purple-600" />
+                <p className="text-sm font-medium text-purple-900">Campagnes disponibles</p>
               </div>
-            ) : campaigns.length === 0 ? (
-              <div className="flex h-[200px] items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <PackageIcon className="mx-auto h-12 w-12 opacity-20" />
-                  <p className="mt-4 text-sm">Aucune campagne disponible pour le moment</p>
-                  <p className="mt-1 text-xs">
-                    Revenez plus tard pour découvrir de nouvelles opportunités
-                  </p>
-                </div>
+              <p className="text-2xl font-bold text-purple-600 mt-2">
+                {pagination?.total || 0}
+              </p>
+            </div>
+          </Card>
+
+          <Card className="border-blue-200 bg-blue-50/50">
+            <div className="p-4">
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="h-5 w-5 text-blue-600" />
+                <p className="text-sm font-medium text-blue-900">Page actuelle</p>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {campaigns.map((campaign) => {
-                  const isFullData = isCampaignFull(campaign)
-                  const imageUrl = isFullData
-                    ? (campaign.products[0]?.product.imageUrl || '/placeholder-product.jpg')
-                    : (campaign.imageUrl || '/placeholder-product.jpg')
+              <p className="text-2xl font-bold text-blue-600 mt-2">
+                {currentPage} / {pagination?.totalPages || 1}
+              </p>
+            </div>
+          </Card>
 
-                  return (
-                    <Card
-                      key={campaign.id}
-                      className={`overflow-hidden transition-all hover:shadow-md ${
-                        campaign.requiresKyc ? 'opacity-75' : ''
-                      }`}
-                    >
-                      <div className="flex gap-4 p-4">
-                        {/* Image */}
-                        <div className="relative shrink-0">
-                          {imageUrl && (
-                            <img
-                              src={imageUrl}
-                              alt={isFullData ? campaign.title : "Product"}
-                              className={`h-24 w-24 rounded-md object-cover ${
-                                campaign.requiresKyc ? 'blur-md' : ''
-                              }`}
-                            />
-                          )}
-                          {campaign.requiresKyc && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <LockIcon className="h-8 w-8 text-gray-600" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Content */}
-                        <div className="flex-1 space-y-2">
-                          {/* Title and KYC Badge */}
-                          <div className="flex items-start justify-between">
-                            <div>
-                              {isFullData ? (
-                                <>
-                                  <h3 className="font-semibold text-lg">{campaign.title}</h3>
-                                  {campaign.description && (
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                      {campaign.description}
-                                    </p>
-                                  )}
-                                </>
-                              ) : (
-                                <>
-                                  <h3 className="font-semibold text-lg text-gray-400">
-                                    Campagne masquée
-                                  </h3>
-                                  <p className="text-sm text-muted-foreground mt-1">
-                                    Complétez votre vérification KYC pour voir les détails
-                                  </p>
-                                </>
-                              )}
-                            </div>
-                            {campaign.requiresKyc && (
-                              <Badge variant="outline" className="border-orange-500 text-orange-600">
-                                <LockIcon className="mr-1 h-3 w-3" />
-                                KYC requis
-                              </Badge>
-                            )}
-                          </div>
-
-                          {/* Campaign Info */}
-                          <div className="flex flex-wrap gap-4 text-sm">
-                            {isFullData ? (
-                              <>
-                                {campaign.seller && (
-                                  <div className="flex items-center gap-1">
-                                    <ShoppingBagIcon className="h-4 w-4 text-muted-foreground" />
-                                    <span className="text-muted-foreground">
-                                      {campaign.seller.companyName || campaign.seller.email}
-                                    </span>
-                                  </div>
-                                )}
-                                {campaign.availableSlots !== undefined && (
-                                  <div className="flex items-center gap-1">
-                                    <UsersIcon className="h-4 w-4 text-muted-foreground" />
-                                    <span className="text-muted-foreground">
-                                      {campaign.availableSlots} place(s) disponible(s)
-                                    </span>
-                                  </div>
-                                )}
-                                {campaign.startDate && (
-                                  <div className="flex items-center gap-1">
-                                    <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                                    <span className="text-muted-foreground">
-                                      Début: {new Date(campaign.startDate).toLocaleDateString("fr-FR")}
-                                    </span>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <div className="flex items-center gap-1">
-                                <AlertCircleIcon className="h-4 w-4 text-orange-600" />
-                                <span className="text-orange-600">
-                                  Informations masquées
-                                </span>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Rewards */}
-                          <div className="flex flex-wrap gap-3 pt-2">
-                            {(isFullData ? campaign.products : [{ bonus: campaign.bonus, reimbursedPrice: campaign.reimbursedPrice, reimbursedShipping: campaign.reimbursedShipping }]).map((item, idx) => (
-                              <div key={idx} className="flex gap-2">
-                                {parseFloat(item.bonus) > 0 && (
-                                  <Badge className="bg-green-600">
-                                    <TrendingUpIcon className="mr-1 h-3 w-3" />
-                                    Bonus: {item.bonus}€
-                                  </Badge>
-                                )}
-                                {item.reimbursedPrice && (
-                                  <Badge variant="outline" className="border-blue-500 text-blue-600">
-                                    Prix remboursé
-                                  </Badge>
-                                )}
-                                {item.reimbursedShipping && (
-                                  <Badge variant="outline" className="border-purple-500 text-purple-600">
-                                    Frais de port remboursés
-                                  </Badge>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Products (for full data) */}
-                          {isFullData && campaign.products && campaign.products.length > 0 && (
-                            <div className="pt-2">
-                              <p className="text-xs text-muted-foreground mb-2">Produits:</p>
-                              <div className="flex flex-wrap gap-2">
-                                {campaign.products.map((prod, idx) => (
-                                  <Badge key={idx} variant="secondary">
-                                    {prod.product.name}
-                                    {prod.product.category && ` - ${prod.product.category.name}`}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Action Button */}
-                          <div className="pt-2">
-                            <Button
-                              onClick={() => handleApply(campaign)}
-                              disabled={campaign.requiresKyc}
-                              variant={campaign.requiresKyc ? "outline" : "default"}
-                              size="sm"
-                            >
-                              {campaign.requiresKyc ? (
-                                <>
-                                  <LockIcon className="mr-2 h-4 w-4" />
-                                  Vérifiez votre KYC
-                                </>
-                              ) : (
-                                <>
-                                  <RocketIcon className="mr-2 h-4 w-4" />
-                                  Participer au test
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  )
-                })}
+          <Card className="border-green-200 bg-green-50/50">
+            <div className="p-4">
+              <div className="flex items-center gap-2">
+                <ShieldCheckIcon className="h-5 w-5 text-green-600" />
+                <p className="text-sm font-medium text-green-900">Statut KYC</p>
               </div>
-            )}
-
-            {/* Pagination */}
-            {pagination && pagination.totalPages > 1 && (
-              <div className="flex items-center justify-between pt-6 border-t">
-                <Button
-                  variant="outline"
-                  onClick={() => fetchCampaigns(currentPage - 1)}
-                  disabled={!pagination.hasPreviousPage || loading}
-                >
-                  Précédent
-                </Button>
-                <span className="text-sm text-muted-foreground">
-                  Page {currentPage} sur {pagination.totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  onClick={() => fetchCampaigns(currentPage + 1)}
-                  disabled={!pagination.hasNextPage || loading}
-                >
-                  Suivant
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              <p className="text-2xl font-bold text-green-600 mt-2 capitalize">
+                {kycStatus === 'verified' ? '✓ Vérifié' : kycStatus === 'pending' ? 'En attente' : kycStatus === 'failed' ? 'Échoué' : 'Non vérifié'}
+              </p>
+            </div>
+          </Card>
+        </div>
       </div>
 
-      {/* Apply Campaign Dialog */}
-      <ApplyCampaignDialog
-        campaign={selectedCampaign}
-        open={applyDialogOpen}
-        onOpenChange={setApplyDialogOpen}
-        onSuccess={fetchCampaigns}
-      />
+      {/* Campaigns Grid */}
+      <div className="px-4 lg:px-6">
+        {loading ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="overflow-hidden">
+                <Skeleton className="h-48 w-full" />
+                <div className="p-4 space-y-3">
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-2/3" />
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : campaigns.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <PackageIcon className="mx-auto h-12 w-12 opacity-20" />
+            <p className="mt-4 text-sm">Aucune campagne disponible pour le moment</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Revenez plus tard pour découvrir de nouvelles opportunités
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {campaigns.map((campaign) => {
+              const isFullData = isCampaignFull(campaign)
+              const imageUrl = isFullData
+                ? (campaign.products[0]?.product.imageUrl || '/placeholder-product.jpg')
+                : (campaign.imageUrl || '/placeholder-product.jpg')
+
+              const bonus = isFullData
+                ? parseFloat(campaign.products[0]?.bonus || '0')
+                : parseFloat(campaign.bonus || '0')
+
+              return (
+                <Card
+                  key={campaign.id}
+                  className={`group overflow-hidden transition-all hover:shadow-xl hover:-translate-y-1 ${
+                    campaign.requiresKyc ? 'opacity-90' : ''
+                  }`}
+                >
+                  {/* Image Header with Overlay */}
+                  <div className="relative h-48 overflow-hidden bg-gradient-to-br from-purple-100 to-blue-100">
+                    <img
+                      src={imageUrl}
+                      alt={isFullData ? campaign.title : "Produit"}
+                      className={`h-full w-full object-cover transition-transform group-hover:scale-110 ${
+                        campaign.requiresKyc ? 'blur-lg' : ''
+                      }`}
+                    />
+
+                    {/* Gradient Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+
+                    {/* Top Badges */}
+                    <div className="absolute top-3 left-3 right-3 flex items-start justify-between">
+                      {/* KYC Badge */}
+                      {campaign.requiresKyc && (
+                        <Badge className="bg-orange-500/90 text-white border-0 shadow-lg backdrop-blur-sm">
+                          <LockIcon className="mr-1 h-3 w-3" />
+                          KYC Requis
+                        </Badge>
+                      )}
+
+                      {/* Slots Badge */}
+                      {isFullData && (
+                        <Badge className="bg-blue-500/90 text-white border-0 shadow-lg backdrop-blur-sm ml-auto">
+                          {campaign.availableSlots} places
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Lock Icon Overlay for KYC Required */}
+                    {campaign.requiresKyc && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="rounded-full bg-white/20 backdrop-blur-sm p-6">
+                          <LockIcon className="h-12 w-12 text-white" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card Content */}
+                  <div className="p-5 space-y-4">
+                    {/* Title & Description */}
+                    <div className="space-y-2">
+                      <h3 className="font-bold text-lg line-clamp-2 text-gray-900">
+                        {isFullData ? campaign.title : 'Campagne disponible'}
+                      </h3>
+                      {isFullData && campaign.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {campaign.description}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Info Grid */}
+                    <div className="space-y-2">
+                      {/* Bonus */}
+                      {bonus > 0 && (
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                          <div className="flex items-center gap-2">
+                            <div className="rounded-full bg-emerald-100 p-1.5">
+                              <SparklesIcon className="h-4 w-4 text-emerald-600" />
+                            </div>
+                            <span className="text-xs font-medium text-emerald-900">Bonus</span>
+                          </div>
+                          <span className="text-sm font-bold text-emerald-600">
+                            {bonus.toFixed(2)}€
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Reimbursement Info */}
+                      <div className="grid grid-cols-2 gap-2">
+                        {isFullData ? (
+                          <>
+                            {campaign.products[0]?.reimbursedPrice && (
+                              <div className="flex items-center gap-1.5 p-2 rounded-lg bg-blue-50 border border-blue-200">
+                                <EuroIcon className="h-3.5 w-3.5 text-blue-600" />
+                                <span className="text-xs text-blue-900">Prix remboursé</span>
+                              </div>
+                            )}
+                            {campaign.products[0]?.reimbursedShipping && (
+                              <div className="flex items-center gap-1.5 p-2 rounded-lg bg-purple-50 border border-purple-200">
+                                <TruckIcon className="h-3.5 w-3.5 text-purple-600" />
+                                <span className="text-xs text-purple-900">Livraison remboursée</span>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {campaign.reimbursedPrice && (
+                              <div className="flex items-center gap-1.5 p-2 rounded-lg bg-blue-50 border border-blue-200">
+                                <EuroIcon className="h-3.5 w-3.5 text-blue-600" />
+                                <span className="text-xs text-blue-900">Prix remboursé</span>
+                              </div>
+                            )}
+                            {campaign.reimbursedShipping && (
+                              <div className="flex items-center gap-1.5 p-2 rounded-lg bg-purple-50 border border-purple-200">
+                                <TruckIcon className="h-3.5 w-3.5 text-purple-600" />
+                                <span className="text-xs text-purple-900">Livraison remboursée</span>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      {/* Seller Info */}
+                      {isFullData && campaign.seller && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t">
+                          <span className="font-medium">Vendeur:</span>
+                          <span className="truncate">
+                            {campaign.seller.companyName || campaign.seller.email}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Apply Button */}
+                    <Button
+                      onClick={() => handleApply(campaign)}
+                      disabled={campaign.requiresKyc}
+                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg"
+                    >
+                      {campaign.requiresKyc ? (
+                        <>
+                          <LockIcon className="mr-2 h-4 w-4" />
+                          KYC requis
+                        </>
+                      ) : (
+                        <>
+                          <RocketIcon className="mr-2 h-4 w-4" />
+                          Postuler
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {pagination && pagination.totalPages > 1 && (
+        <div className="px-4 lg:px-6 flex justify-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => fetchCampaigns(currentPage - 1)}
+            disabled={!pagination.hasPreviousPage || loading}
+          >
+            Précédent
+          </Button>
+          <div className="flex items-center gap-2 px-4">
+            <span className="text-sm text-muted-foreground">
+              Page {currentPage} sur {pagination.totalPages}
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => fetchCampaigns(currentPage + 1)}
+            disabled={!pagination.hasNextPage || loading}
+          >
+            Suivant
+          </Button>
+        </div>
+      )}
+
+      {/* Apply Dialog */}
+      {selectedCampaign && (
+        <ApplyCampaignDialog
+          open={applyDialogOpen}
+          onOpenChange={setApplyDialogOpen}
+          campaign={selectedCampaign}
+          onSuccess={() => {
+            setApplyDialogOpen(false)
+            toast.success("Votre candidature a été envoyée avec succès")
+          }}
+        />
+      )}
     </div>
   )
 }

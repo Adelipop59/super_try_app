@@ -102,10 +102,15 @@ function CampaignsPageContent() {
     startDate: '',
     endDate: '',
     totalSlots: 0,
+    marketplaceMode: 'PROCEDURES' as 'PROCEDURES' | 'AMAZON_DIRECT_LINK',
     marketplace: '',
+    amazonLink: '',
+    keywords: [] as string[],
   })
+  const [editKeywordInput, setEditKeywordInput] = useState('')
   const [editProduct, setEditProduct] = useState<{
     productId: string
+    productName: string
     quantity: number
     expectedPrice: number
     shippingCost: number
@@ -158,10 +163,15 @@ function CampaignsPageContent() {
     startDate: '',
     endDate: '',
     totalSlots: 10,
+    marketplaceMode: 'PROCEDURES' as 'PROCEDURES' | 'AMAZON_DIRECT_LINK',
     marketplace: '',
+    amazonLink: '',
+    keywords: [] as string[],
   })
+  const [keywordInput, setKeywordInput] = useState('')
   const [selectedProduct, setSelectedProduct] = useState<{
     productId: string
+    productName: string
     quantity: number
     expectedPrice: number
     shippingCost: number
@@ -294,14 +304,19 @@ function CampaignsPageContent() {
       startDate: campaign.startDate ? campaign.startDate.split('T')[0] : '',
       endDate: campaign.endDate ? campaign.endDate.split('T')[0] : '',
       totalSlots: campaign.totalSlots,
+      marketplaceMode: campaign.marketplaceMode || 'PROCEDURES',
       marketplace: campaign.marketplace || '',
+      amazonLink: campaign.amazonLink || '',
+      keywords: campaign.keywords || [],
     })
+    setEditKeywordInput('')
 
     // Set product from campaign
     if (campaign.products && campaign.products.length > 0) {
       const cp = campaign.products[0]
       setEditProduct({
         productId: cp.productId,
+        productName: cp.productName || cp.product?.name || '',
         quantity: cp.quantity || 1,
         expectedPrice: cp.expectedPrice || cp.product?.price || 0,
         shippingCost: cp.shippingCost || cp.product?.shippingCost || 0,
@@ -501,6 +516,7 @@ function CampaignsPageContent() {
     if (product) {
       setEditProduct({
         productId,
+        productName: product.name,
         quantity: 1,
         expectedPrice: product.price,
         shippingCost: product.shippingCost || 0,
@@ -533,6 +549,7 @@ function CampaignsPageContent() {
     if (product) {
       setSelectedProduct({
         productId,
+        productName: product.name,
         quantity: 1,
         expectedPrice: product.price,
         shippingCost: product.shippingCost || 0,
@@ -570,11 +587,15 @@ function CampaignsPageContent() {
         title: string
         description: string
         totalSlots: number
+        marketplaceMode?: 'PROCEDURES' | 'AMAZON_DIRECT_LINK'
         marketplace?: string
+        amazonLink?: string
+        keywords?: string[]
         startDate?: string
         endDate?: string
         products?: {
           productId: string
+          productName: string
           quantity: number
           expectedPrice: number
         }[]
@@ -582,7 +603,16 @@ function CampaignsPageContent() {
         title: editForm.title,
         description: editForm.description,
         totalSlots: editProduct?.quantity || 0,  // Synchronisé avec quantity du produit
+        marketplaceMode: editForm.marketplaceMode,
         marketplace: editForm.marketplace || undefined,
+      }
+
+      if (editForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && editForm.amazonLink) {
+        updateData.amazonLink = editForm.amazonLink
+      }
+
+      if (editForm.keywords.length > 0) {
+        updateData.keywords = editForm.keywords
       }
 
       // Only include dates if they are set
@@ -697,6 +727,16 @@ function CampaignsPageContent() {
       return
     }
 
+    if (createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && !createForm.amazonLink) {
+      toast.error('Le lien Amazon est requis pour ce mode')
+      return
+    }
+
+    if (selectedProduct && !selectedProduct.productName?.trim()) {
+      toast.error('Le nom du produit est requis')
+      return
+    }
+
     try {
       setIsCreating(true)
 
@@ -704,11 +744,15 @@ function CampaignsPageContent() {
         title: string
         description?: string
         totalSlots: number
+        marketplaceMode: 'PROCEDURES' | 'AMAZON_DIRECT_LINK'
         marketplace: string
+        amazonLink?: string
+        keywords?: string[]
         startDate?: string
         endDate?: string
         products?: {
           productId: string
+          productName: string
           quantity: number
           expectedPrice: number
         }[]
@@ -716,7 +760,16 @@ function CampaignsPageContent() {
         title: createForm.title,
         description: createForm.description || undefined,
         totalSlots: selectedProduct?.quantity || 0,  // Synchronisé avec quantity du produit
+        marketplaceMode: createForm.marketplaceMode,
         marketplace: createForm.marketplace,
+      }
+
+      if (createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && createForm.amazonLink) {
+        createData.amazonLink = createForm.amazonLink
+      }
+
+      if (createForm.keywords.length > 0) {
+        createData.keywords = createForm.keywords
       }
 
       if (createForm.startDate) {
@@ -783,8 +836,12 @@ function CampaignsPageContent() {
         startDate: '',
         endDate: '',
         totalSlots: 10,
+        marketplaceMode: 'PROCEDURES' as 'PROCEDURES' | 'AMAZON_DIRECT_LINK',
         marketplace: '',
+        amazonLink: '',
+        keywords: [],
       })
+      setKeywordInput('')
       setSelectedProduct(null)
       setDistributions([])
       setSelectedTemplateId('')
@@ -904,7 +961,10 @@ function CampaignsPageContent() {
               <div>
                 <DialogTitle className="text-xl">Nouvelle campagne</DialogTitle>
                 <DialogDescription>
-                  {createStep === 1 ? 'Informations generales et produits' : createStep === 2 ? 'Configuration des distributions' : createStep === 3 ? 'Criteres d\'eligibilite' : 'Selection de la procedure'}
+                  {createStep === 1 ? 'Informations generales et produits' :
+                   createStep === 2 ? `Configuration des distributions${createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' ? ' (optionnel)' : ''}` :
+                   createStep === 3 ? 'Criteres d\'eligibilite' :
+                   `Selection de la procedure${createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' ? ' (optionnel)' : ''}`}
                 </DialogDescription>
               </div>
             </div>
@@ -948,7 +1008,7 @@ function CampaignsPageContent() {
                 {createStep > 2 ? <CheckIcon className="h-4 w-4" /> : '2'}
               </div>
               <span className={`text-sm hidden sm:inline ${createStep >= 2 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                Distribution
+                Distribution{createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && <span className="text-xs opacity-70"> (opt.)</span>}
               </span>
             </button>
             <div className={`h-px w-4 ${createStep >= 3 ? 'bg-primary' : 'bg-muted'}`} />
@@ -998,7 +1058,7 @@ function CampaignsPageContent() {
                 4
               </div>
               <span className={`text-sm hidden sm:inline ${createStep >= 4 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                Procedure
+                Procedure{createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && <span className="text-xs opacity-70"> (opt.)</span>}
               </span>
             </button>
           </div>
@@ -1050,6 +1110,108 @@ function CampaignsPageContent() {
                     <SelectItem value="IT">Italie (IT)</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="create-marketplaceMode" className="text-sm font-medium">
+                  Mode de campagne <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={createForm.marketplaceMode}
+                  onValueChange={(value: 'PROCEDURES' | 'AMAZON_DIRECT_LINK') => setCreateForm({ ...createForm, marketplaceMode: value })}
+                >
+                  <SelectTrigger id="create-marketplaceMode" className="h-10">
+                    <SelectValue placeholder="Sélectionnez un mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PROCEDURES">Procédures (avec étapes de validation)</SelectItem>
+                    <SelectItem value="AMAZON_DIRECT_LINK">Lien Amazon direct</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {createForm.marketplaceMode === 'PROCEDURES'
+                    ? 'Les testeurs suivront des procédures définies avec plusieurs étapes de validation.'
+                    : 'Les testeurs recevront directement un lien Amazon pour commander le produit.'}
+                </p>
+              </div>
+              {createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && (
+                <div className="grid gap-2">
+                  <Label htmlFor="create-amazonLink" className="text-sm font-medium">
+                    Lien Amazon <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="create-amazonLink"
+                    type="url"
+                    placeholder="https://www.amazon.fr/dp/..."
+                    value={createForm.amazonLink}
+                    onChange={(e) => setCreateForm({ ...createForm, amazonLink: e.target.value })}
+                    className="h-10"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    URL complète du produit sur Amazon
+                  </p>
+                </div>
+              )}
+              <div className="grid gap-2">
+                <Label htmlFor="create-keywords" className="text-sm font-medium">
+                  Mots-clés (optionnel)
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="create-keywords"
+                    placeholder="Ajouter un mot-clé"
+                    value={keywordInput}
+                    onChange={(e) => setKeywordInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        const keyword = keywordInput.trim()
+                        if (keyword && !createForm.keywords.includes(keyword)) {
+                          setCreateForm({ ...createForm, keywords: [...createForm.keywords, keyword] })
+                          setKeywordInput('')
+                        }
+                      }
+                    }}
+                    className="h-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const keyword = keywordInput.trim()
+                      if (keyword && !createForm.keywords.includes(keyword)) {
+                        setCreateForm({ ...createForm, keywords: [...createForm.keywords, keyword] })
+                        setKeywordInput('')
+                      }
+                    }}
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Appuyez sur Entrée ou cliquez sur + pour ajouter
+                </p>
+                {createForm.keywords.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {createForm.keywords.map((keyword, index) => (
+                      <Badge key={index} variant="secondary" className="gap-1">
+                        {keyword}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCreateForm({
+                              ...createForm,
+                              keywords: createForm.keywords.filter((_, i) => i !== index)
+                            })
+                          }}
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <XIcon className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
@@ -1105,6 +1267,15 @@ function CampaignsPageContent() {
           {/* Step 2: Distributions */}
           {createStep === 2 && (
             <div className="grid gap-5 py-4">
+              {createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && (
+                <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      ℹ️ En mode <strong>Lien Amazon direct</strong>, les distributions sont optionnelles. Vous pouvez ignorer cette étape si vous ne souhaitez pas planifier de distributions spécifiques.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
               {/* Validation quantity vs distributions - Sticky en haut */}
               <Card className="border-primary/20 bg-primary/5 sticky top-0 z-10">
                 <CardContent className="p-4">
@@ -1379,6 +1550,15 @@ function CampaignsPageContent() {
           {/* Step 4: Procedure Selection or Creation */}
           {createStep === 4 && (
             <div className="grid gap-5 py-4 max-h-[400px] overflow-y-auto">
+              {createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && (
+                <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      ℹ️ En mode <strong>Lien Amazon direct</strong>, les procédures sont optionnelles. Les testeurs commanderont directement via le lien Amazon que vous avez fourni. Vous pouvez ignorer cette étape.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-sm font-medium">Procedure de test</Label>
@@ -1668,6 +1848,108 @@ function CampaignsPageContent() {
                         <SelectItem value="IT">Italie (IT)</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-marketplaceMode" className="text-sm font-medium">
+                      Mode de campagne <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={editForm.marketplaceMode}
+                      onValueChange={(value: 'PROCEDURES' | 'AMAZON_DIRECT_LINK') => setEditForm({ ...editForm, marketplaceMode: value })}
+                    >
+                      <SelectTrigger id="edit-marketplaceMode" className="h-10">
+                        <SelectValue placeholder="Sélectionnez un mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PROCEDURES">Procédures (avec étapes de validation)</SelectItem>
+                        <SelectItem value="AMAZON_DIRECT_LINK">Lien Amazon direct</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {editForm.marketplaceMode === 'PROCEDURES'
+                        ? 'Les testeurs suivront des procédures définies avec plusieurs étapes de validation.'
+                        : 'Les testeurs recevront directement un lien Amazon pour commander le produit.'}
+                    </p>
+                  </div>
+                  {editForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-amazonLink" className="text-sm font-medium">
+                        Lien Amazon <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="edit-amazonLink"
+                        type="url"
+                        placeholder="https://www.amazon.fr/dp/..."
+                        value={editForm.amazonLink}
+                        onChange={(e) => setEditForm({ ...editForm, amazonLink: e.target.value })}
+                        className="h-10"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        URL complète du produit sur Amazon
+                      </p>
+                    </div>
+                  )}
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-keywords" className="text-sm font-medium">
+                      Mots-clés (optionnel)
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="edit-keywords"
+                        placeholder="Ajouter un mot-clé"
+                        value={editKeywordInput}
+                        onChange={(e) => setEditKeywordInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            const keyword = editKeywordInput.trim()
+                            if (keyword && !editForm.keywords.includes(keyword)) {
+                              setEditForm({ ...editForm, keywords: [...editForm.keywords, keyword] })
+                              setEditKeywordInput('')
+                            }
+                          }
+                        }}
+                        className="h-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const keyword = editKeywordInput.trim()
+                          if (keyword && !editForm.keywords.includes(keyword)) {
+                            setEditForm({ ...editForm, keywords: [...editForm.keywords, keyword] })
+                            setEditKeywordInput('')
+                          }
+                        }}
+                      >
+                        <PlusIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Appuyez sur Entrée ou cliquez sur + pour ajouter
+                    </p>
+                    {editForm.keywords.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {editForm.keywords.map((keyword, index) => (
+                          <Badge key={index} variant="secondary" className="gap-1">
+                            {keyword}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditForm({
+                                  ...editForm,
+                                  keywords: editForm.keywords.filter((_, i) => i !== index)
+                                })
+                              }}
+                              className="ml-1 hover:text-destructive"
+                            >
+                              <XIcon className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">

@@ -215,18 +215,58 @@ export default function CampaignDetailPage() {
                 </p>
               </div>
 
-              {campaign.marketplace && (
+              <div className="grid grid-cols-2 gap-4">
+                {campaign.marketplace && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Marketplace</p>
+                    <p className="font-medium">
+                      {campaign.marketplace === 'FR' && '🇫🇷 France'}
+                      {campaign.marketplace === 'DE' && '🇩🇪 Allemagne'}
+                      {campaign.marketplace === 'UK' && '🇬🇧 Royaume-Uni'}
+                      {campaign.marketplace === 'US' && '🇺🇸 États-Unis'}
+                      {campaign.marketplace === 'ES' && '🇪🇸 Espagne'}
+                      {campaign.marketplace === 'IT' && '🇮🇹 Italie'}
+                      {!['FR', 'DE', 'UK', 'US', 'ES', 'IT'].includes(campaign.marketplace) && campaign.marketplace}
+                    </p>
+                  </div>
+                )}
+                {campaign.marketplaceMode && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Mode</p>
+                    <p className="font-medium">
+                      {campaign.marketplaceMode === 'PROCEDURES' ? '📋 Procédures' : '🔗 Lien direct'}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {campaign.marketplaceMode === 'AMAZON_DIRECT_LINK' && campaign.amazonLink && (
                 <div>
-                  <p className="text-sm text-muted-foreground">Marketplace</p>
-                  <p className="font-medium">
-                    {campaign.marketplace === 'FR' && '🇫🇷 France'}
-                    {campaign.marketplace === 'DE' && '🇩🇪 Allemagne'}
-                    {campaign.marketplace === 'UK' && '🇬🇧 Royaume-Uni'}
-                    {campaign.marketplace === 'US' && '🇺🇸 États-Unis'}
-                    {campaign.marketplace === 'ES' && '🇪🇸 Espagne'}
-                    {campaign.marketplace === 'IT' && '🇮🇹 Italie'}
-                    {!['FR', 'DE', 'UK', 'US', 'ES', 'IT'].includes(campaign.marketplace) && campaign.marketplace}
-                  </p>
+                  <p className="text-sm text-muted-foreground">Lien Amazon</p>
+                  <a
+                    href={campaign.amazonLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary hover:underline flex items-center gap-1"
+                  >
+                    Voir le produit sur Amazon
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                </div>
+              )}
+
+              {campaign.keywords && campaign.keywords.length > 0 && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Mots-clés</p>
+                  <div className="flex flex-wrap gap-2">
+                    {campaign.keywords.map((keyword, index) => (
+                      <Badge key={index} variant="secondary">
+                        {keyword}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               )}
 

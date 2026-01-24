@@ -234,9 +234,58 @@ export default function ProSessionDetailPage() {
                 </div>
               )}
 
+              {session.validatedProductPrice && (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Prix validé (étape validation)</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium">{session.validatedProductPrice}€</p>
+                    {session.priceValidatedAt && (
+                      <span className="text-xs text-muted-foreground">
+                        • {new Date(session.priceValidatedAt).toLocaleDateString('fr-FR')}
+                      </span>
+                    )}
+                  </div>
+                  {session.priceValidationAttempts && (
+                    <p className="text-xs text-muted-foreground">
+                      Tentatives: {session.priceValidationAttempts}
+                    </p>
+                  )}
+
+                  {/* Display submitted product title if present */}
+                  {session.productTitleSubmitted && (
+                    <div className="mt-3 rounded-lg border border-orange-200 bg-orange-50 dark:bg-orange-950 p-3">
+                      <div className="flex items-start gap-2">
+                        <svg className="h-4 w-4 text-orange-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-orange-800 dark:text-orange-200 mb-1">
+                            Validation après 2 échecs
+                          </p>
+                          <p className="text-xs text-orange-700 dark:text-orange-300 mb-2">
+                            Le testeur a soumis le titre du produit trouvé :
+                          </p>
+                          <p className="text-sm font-mono bg-white dark:bg-gray-900 p-2 rounded border">
+                            {session.productTitleSubmitted}
+                          </p>
+                          {session.productTitleSubmittedAt && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Soumis le {new Date(session.productTitleSubmittedAt).toLocaleDateString('fr-FR')}
+                            </p>
+                          )}
+                          <p className="text-xs text-orange-700 dark:text-orange-300 mt-2">
+                            ⚠️ Vérifiez que le produit correspond bien à votre campagne ou corrigez le prix attendu si nécessaire.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {session.productPrice && (
                 <div>
-                  <p className="text-sm text-muted-foreground">Prix validé</p>
+                  <p className="text-sm text-muted-foreground">Prix final du produit</p>
                   <p className="font-medium">{session.productPrice}€</p>
                 </div>
               )}
