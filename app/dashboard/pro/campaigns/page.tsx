@@ -527,6 +527,8 @@ function CampaignsPageContent() {
   }
 
   const handleEditUpdateProduct = (updates: Partial<{
+    productName: string
+    quantity: number
     expectedPrice: number
     shippingCost: number
     reimbursedPrice: boolean
@@ -560,6 +562,8 @@ function CampaignsPageContent() {
   }
 
   const handleUpdateProduct = (updates: Partial<{
+    productName: string
+    quantity: number
     expectedPrice: number
     shippingCost: number
     reimbursedPrice: boolean
@@ -965,6 +969,20 @@ function CampaignsPageContent() {
             <DialogDescription>
               Configurez votre campagne de test produit
             </DialogDescription>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <PlusIcon className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl">Nouvelle campagne</DialogTitle>
+                <DialogDescription>
+                  {createStep === 1 ? 'Informations generales et produits' :
+                   createStep === 2 ? 'Configuration des distributions' :
+                   createStep === 3 ? 'Criteres d\'eligibilite' :
+                   'Selection de la procedure'}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
           <Tabs value={createTab} onValueChange={setCreateTab} className="flex-1 flex flex-col overflow-hidden">
@@ -1233,6 +1251,303 @@ function CampaignsPageContent() {
                   </div>
                 </div>
               </TabsContent>
+          {/* Step Indicators - Clickable for navigation */}
+          <div className="flex items-center justify-center gap-2 py-4">
+            <button
+              type="button"
+              onClick={() => setCreateStep(1)}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            >
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
+                createStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+              }`}>
+                {createStep > 1 ? <CheckIcon className="h-4 w-4" /> : '1'}
+              </div>
+              <span className={`text-sm hidden sm:inline ${createStep >= 1 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                Infos
+              </span>
+            </button>
+            <div className={`h-px w-4 ${createStep >= 2 ? 'bg-primary' : 'bg-muted'}`} />
+            <button
+              type="button"
+              onClick={() => {
+                if (!createForm.title.trim()) {
+                  toast.error('Le titre est requis pour passer a l\'etape suivante')
+                  return
+                }
+                if (!createForm.marketplace) {
+                  toast.error('Le marketplace est requis pour passer a l\'etape suivante')
+                  return
+                }
+                setCreateStep(2)
+              }}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            >
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
+                createStep >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+              }`}>
+                {createStep > 2 ? <CheckIcon className="h-4 w-4" /> : '2'}
+              </div>
+              <span className={`text-sm hidden sm:inline ${createStep >= 2 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                Distribution
+              </span>
+            </button>
+            <div className={`h-px w-4 ${createStep >= 3 ? 'bg-primary' : 'bg-muted'}`} />
+            <button
+              type="button"
+              onClick={() => {
+                if (!createForm.title.trim()) {
+                  toast.error('Le titre est requis pour passer a l\'etape suivante')
+                  return
+                }
+                if (!createForm.marketplace) {
+                  toast.error('Le marketplace est requis pour passer a l\'etape suivante')
+                  return
+                }
+                setCreateStep(3)
+              }}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            >
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
+                createStep >= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+              }`}>
+                {createStep > 3 ? <CheckIcon className="h-4 w-4" /> : '3'}
+              </div>
+              <span className={`text-sm hidden sm:inline ${createStep >= 3 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                Criteres
+              </span>
+            </button>
+            {createForm.marketplaceMode !== 'AMAZON_DIRECT_LINK' && (
+              <>
+                <div className={`h-px w-4 ${createStep >= 4 ? 'bg-primary' : 'bg-muted'}`} />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!createForm.title.trim()) {
+                      toast.error('Le titre est requis pour passer a l\'etape suivante')
+                      return
+                    }
+                    if (!createForm.marketplace) {
+                      toast.error('Le marketplace est requis pour passer a l\'etape suivante')
+                      return
+                    }
+                    setCreateStep(4)
+                  }}
+                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                >
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
+                    createStep >= 4 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                  }`}>
+                    4
+                  </div>
+                  <span className={`text-sm hidden sm:inline ${createStep >= 4 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                    Procedure
+                  </span>
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Step 1: Basic Info + Products */}
+          {createStep === 1 && (
+            <div className="grid gap-5 py-4 max-h-[400px] overflow-y-auto">
+              <div className="grid gap-2">
+                <Label htmlFor="create-title" className="text-sm font-medium">
+                  Titre de la campagne <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="create-title"
+                  placeholder="Ex: Test produit été 2024"
+                  value={createForm.title}
+                  onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+                  className="h-10"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="create-description" className="text-sm font-medium">
+                  Description
+                </Label>
+                <Textarea
+                  id="create-description"
+                  placeholder="Décrivez votre campagne..."
+                  value={createForm.description}
+                  onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                  className="min-h-[80px] resize-none"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="create-marketplace" className="text-sm font-medium">
+                  Marketplace <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={createForm.marketplace}
+                  onValueChange={(value) => setCreateForm({ ...createForm, marketplace: value })}
+                >
+                  <SelectTrigger id="create-marketplace" className="h-10">
+                    <SelectValue placeholder="Sélectionnez un pays" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FR">France (FR)</SelectItem>
+                    <SelectItem value="DE">Allemagne (DE)</SelectItem>
+                    <SelectItem value="UK">Royaume-Uni (UK)</SelectItem>
+                    <SelectItem value="US">États-Unis (US)</SelectItem>
+                    <SelectItem value="ES">Espagne (ES)</SelectItem>
+                    <SelectItem value="IT">Italie (IT)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="create-marketplaceMode" className="text-sm font-medium">
+                  Mode de campagne <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={createForm.marketplaceMode}
+                  onValueChange={(value: 'PROCEDURES' | 'AMAZON_DIRECT_LINK') => setCreateForm({ ...createForm, marketplaceMode: value })}
+                >
+                  <SelectTrigger id="create-marketplaceMode" className="h-10">
+                    <SelectValue placeholder="Sélectionnez un mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PROCEDURES">Procédures (avec étapes de validation)</SelectItem>
+                    <SelectItem value="AMAZON_DIRECT_LINK">Lien Amazon direct</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {createForm.marketplaceMode === 'PROCEDURES'
+                    ? 'Les testeurs suivront des procédures définies avec plusieurs étapes de validation.'
+                    : 'Les testeurs recevront directement un lien Amazon pour commander le produit.'}
+                </p>
+              </div>
+              {createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && (
+                <div className="grid gap-2">
+                  <Label htmlFor="create-amazonLink" className="text-sm font-medium">
+                    Lien Amazon <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="create-amazonLink"
+                    type="url"
+                    placeholder="https://www.amazon.fr/dp/..."
+                    value={createForm.amazonLink}
+                    onChange={(e) => setCreateForm({ ...createForm, amazonLink: e.target.value })}
+                    className="h-10"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    URL complète du produit sur Amazon
+                  </p>
+                </div>
+              )}
+              <div className="grid gap-2">
+                <Label htmlFor="create-keywords" className="text-sm font-medium">
+                  Mots-clés (optionnel)
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="create-keywords"
+                    placeholder="Ajouter un mot-clé"
+                    value={keywordInput}
+                    onChange={(e) => setKeywordInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        const keyword = keywordInput.trim()
+                        if (keyword && !createForm.keywords.includes(keyword)) {
+                          setCreateForm({ ...createForm, keywords: [...createForm.keywords, keyword] })
+                          setKeywordInput('')
+                        }
+                      }
+                    }}
+                    className="h-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const keyword = keywordInput.trim()
+                      if (keyword && !createForm.keywords.includes(keyword)) {
+                        setCreateForm({ ...createForm, keywords: [...createForm.keywords, keyword] })
+                        setKeywordInput('')
+                      }
+                    }}
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Appuyez sur Entrée ou cliquez sur + pour ajouter
+                </p>
+                {createForm.keywords.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {createForm.keywords.map((keyword, index) => (
+                      <Badge key={index} variant="secondary" className="gap-1">
+                        {keyword}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCreateForm({
+                              ...createForm,
+                              keywords: createForm.keywords.filter((_, i) => i !== index)
+                            })
+                          }}
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <XIcon className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="create-startDate" className="text-sm font-medium">
+                    Date de début
+                  </Label>
+                  <Input
+                    id="create-startDate"
+                    type="date"
+                    value={createForm.startDate}
+                    onChange={(e) => setCreateForm({ ...createForm, startDate: e.target.value })}
+                    className="h-10"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="create-endDate" className="text-sm font-medium">
+                    Date de fin
+                  </Label>
+                  <Input
+                    id="create-endDate"
+                    type="date"
+                    value={createForm.endDate}
+                    onChange={(e) => setCreateForm({ ...createForm, endDate: e.target.value })}
+                    className="h-10"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-sm font-medium">
+                  Produits associés
+                </Label>
+                {products.length === 0 ? (
+                  <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground bg-muted/50 rounded-md">
+                    <PackageIcon className="h-4 w-4" />
+                    <span>Aucun produit disponible.</span>
+                    <Link href="/dashboard/products" className="text-primary hover:underline font-medium">
+                      Créer un produit
+                    </Link>
+                  </div>
+                ) : (
+                  <CampaignProductConfig
+                    products={products}
+                    selectedProduct={selectedProduct}
+                    onSelectProduct={handleSelectProduct}
+                    onUpdateProduct={handleUpdateProduct}
+                    onRemoveProduct={handleRemoveProduct}
+                  />
+                )}
+              </div>
+            </div>
+          )}
 
               {/* Tab 2: Distribution */}
               <TabsContent value="distribution" className="mt-0 space-y-4">
@@ -1279,6 +1594,71 @@ function CampaignsPageContent() {
                     </div>
                   </CardContent>
                 </Card>
+          {/* Step 2: Distributions */}
+          {createStep === 2 && (
+            <div className="grid gap-5 py-4">
+              {createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' && (
+                <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      ℹ️ En mode <strong>Lien Amazon direct</strong>, les testeurs commanderont directement via le lien Amazon fourni. Les distributions permettent de planifier quand les produits seront disponibles.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+              {/* Validation quantity vs distributions - Sticky en haut */}
+              <Card className="border-primary/20 bg-primary/5 sticky top-0 z-10">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-medium">
+                        {selectedProduct 
+                          ? `Produits: ${selectedProduct.quantity}` 
+                          : 'Aucun produit sélectionné'}
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Distributions créées: {distributions.length} ligne(s)
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {selectedProduct && (() => {
+                        const totalDistributed = distributions.reduce((sum, d) => sum + (d.maxUnits || 0), 0)
+                        return totalDistributed === selectedProduct.quantity ? (
+                          <Badge variant="default" className="bg-green-600">✓ Complet</Badge>
+                        ) : totalDistributed > selectedProduct.quantity ? (
+                          <Badge variant="destructive">
+                            Dépassement: +{totalDistributed - selectedProduct.quantity}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+                            {selectedProduct.quantity - totalDistributed} manquant(s)
+                          </Badge>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                  
+                  {selectedProduct && distributions.length > 0 && (() => {
+                    const totalDistributed = distributions.reduce((sum, d) => sum + (d.maxUnits || 0), 0)
+                    const remaining = selectedProduct.quantity - totalDistributed
+                    return (
+                      <div className="mt-3 pt-3 border-t flex justify-between text-sm">
+                        <span className="text-muted-foreground">Produits distribués:</span>
+                        <span className="font-medium">{totalDistributed}</span>
+                        {remaining < 0 ? (
+                          <span className="font-bold text-destructive">
+                            ⚠️ Dépassement de {Math.abs(remaining)} produit{Math.abs(remaining) > 1 ? 's' : ''}
+                          </span>
+                        ) : (
+                          <span className={`font-bold ${remaining === 0 ? 'text-green-600' : 'text-orange-500'}`}>
+                            Restants: {remaining}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </CardContent>
+              </Card>
 
                 <div className="flex items-center justify-between">
                   <div>
@@ -1709,6 +2089,174 @@ function CampaignsPageContent() {
                 </>
               )}
             </Button>
+          )}
+
+          {/* Step 4: Procedure Selection or Creation */}
+          {createStep === 4 && createForm.marketplaceMode !== 'AMAZON_DIRECT_LINK' && (
+            <div className="grid gap-5 py-4 max-h-[400px] overflow-y-auto">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-medium">Procedure de test</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Choisissez un template existant ou ignorez cette etape
+                  </p>
+                </div>
+                <Link href="/dashboard/procedures">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                  >
+                    <PlusIcon className="mr-2 h-4 w-4" />
+                    Creer une procedure
+                  </Button>
+                </Link>
+              </div>
+
+              <div className="grid gap-4">
+                <div className="grid gap-4">
+
+                    {procedureTemplates.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-center bg-muted/50 rounded-md">
+                        <ListChecksIcon className="h-8 w-8 text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">
+                          Aucun template de procedure disponible
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Vous pouvez en creer dans la section Procedures
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-hidden rounded-lg border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Template</TableHead>
+                              <TableHead className="w-[80px]">Etapes</TableHead>
+                              <TableHead className="w-[50px]"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {procedureTemplates.map((template) => (
+                              <TableRow
+                                key={template.id}
+                                className={selectedTemplateId === template.id ? 'bg-primary/5' : ''}
+                              >
+                                <TableCell>
+                                  <div>
+                                    <div className="font-medium">{template.name}</div>
+                                    <div className="text-xs text-muted-foreground">{template.title}</div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">
+                                    {template.steps.length}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    type="button"
+                                    variant={selectedTemplateId === template.id ? "default" : "ghost"}
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => setSelectedTemplateId(
+                                      selectedTemplateId === template.id ? '' : template.id
+                                    )}
+                                  >
+                                    {selectedTemplateId === template.id ? (
+                                      <CheckIcon className="h-4 w-4" />
+                                    ) : (
+                                      <PlusIcon className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            {createStep === 1 ? (
+              <>
+                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                  Annuler
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (!createForm.title.trim()) {
+                      toast.error('Le titre est requis')
+                      return
+                    }
+                    if (!createForm.marketplace) {
+                      toast.error('Le marketplace est requis')
+                      return
+                    }
+                    setCreateStep(2)
+                  }}
+                >
+                  Suivant
+                </Button>
+              </>
+            ) : createStep === 2 ? (
+              <>
+                <Button variant="outline" onClick={() => setCreateStep(1)}>
+                  Retour
+                </Button>
+                <Button onClick={() => setCreateStep(3)}>
+                  Suivant
+                </Button>
+              </>
+            ) : createStep === 3 ? (
+              <>
+                <Button variant="outline" onClick={() => setCreateStep(2)}>
+                  Retour
+                </Button>
+                {createForm.marketplaceMode === 'AMAZON_DIRECT_LINK' ? (
+                  <Button onClick={handleCreateSave} disabled={isCreating}>
+                    {isCreating ? (
+                      <>
+                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Creation...
+                      </>
+                    ) : (
+                      <>
+                        <PlusIcon className="mr-2 h-4 w-4" />
+                        Creer la campagne
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <Button onClick={() => setCreateStep(4)}>
+                    Suivant
+                  </Button>
+                )}
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setCreateStep(3)}>
+                  Retour
+                </Button>
+                <Button onClick={handleCreateSave} disabled={isCreating}>
+                  {isCreating ? (
+                    <>
+                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Creation...
+                    </>
+                  ) : (
+                    <>
+                      <PlusIcon className="mr-2 h-4 w-4" />
+                      Creer la campagne
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1781,21 +2329,25 @@ function CampaignsPageContent() {
                 Criteres
               </span>
             </button>
-            <div className={`h-px w-4 ${editStep >= 4 ? 'bg-primary' : 'bg-muted'}`} />
-            <button
-              type="button"
-              onClick={() => setEditStep(4)}
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-            >
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
-                editStep >= 4 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-              }`}>
-                4
-              </div>
-              <span className={`text-sm hidden sm:inline ${editStep >= 4 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                Procedure
-              </span>
-            </button>
+            {editForm.marketplaceMode !== 'AMAZON_DIRECT_LINK' && (
+              <>
+                <div className={`h-px w-4 ${editStep >= 4 ? 'bg-primary' : 'bg-muted'}`} />
+                <button
+                  type="button"
+                  onClick={() => setEditStep(4)}
+                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                >
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
+                    editStep >= 4 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                  }`}>
+                    4
+                  </div>
+                  <span className={`text-sm hidden sm:inline ${editStep >= 4 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                    Procedure
+                  </span>
+                </button>
+              </>
+            )}
           </div>
 
           {isLoadingEditData ? (
@@ -2272,7 +2824,7 @@ function CampaignsPageContent() {
               )}
 
               {/* Step 4: Procedures */}
-              {editStep === 4 && (
+              {editStep === 4 && editForm.marketplaceMode !== 'AMAZON_DIRECT_LINK' && (
                 <div className="grid gap-5 py-4 max-h-[400px] overflow-y-auto">
                   <div className="flex items-center justify-end mb-2">
                     <Link href="/dashboard/procedures">
@@ -2437,9 +2989,22 @@ function CampaignsPageContent() {
                 <Button variant="outline" onClick={() => setEditStep(2)}>
                   Retour
                 </Button>
-                <Button onClick={() => setEditStep(4)}>
-                  Suivant
-                </Button>
+                {editForm.marketplaceMode === 'AMAZON_DIRECT_LINK' ? (
+                  <Button onClick={handleEditSave} disabled={isSaving || isLoadingEditData}>
+                    {isSaving ? (
+                      <>
+                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Enregistrement...
+                      </>
+                    ) : (
+                      'Enregistrer les modifications'
+                    )}
+                  </Button>
+                ) : (
+                  <Button onClick={() => setEditStep(4)}>
+                    Suivant
+                  </Button>
+                )}
               </>
             ) : (
               <>

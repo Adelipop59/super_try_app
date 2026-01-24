@@ -714,6 +714,7 @@ export interface EligibleCampaignProduct {
   product: {
     name: string
     imageUrl: string
+    images: string | string[]
     category?: {
       id: string
       name: string
@@ -734,6 +735,7 @@ export interface EligibleCampaignSeller {
 export interface EligibleCampaignLimited {
   id: string
   imageUrl: string
+  images: string | string[]
   bonus: string
   reimbursedPrice: boolean
   reimbursedShipping: boolean
