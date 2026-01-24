@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
     // Ajouter les paramètres requis par le backend
     formData.append('entityType', 'products')
 
-    // Construire l'URL du backend: API_BASE_URL = http://localhost:3001/api/v1
-    // On veut: http://localhost:3001/api/upload/image
+    // Construire l'URL du backend: API_BASE_URL = http://localhost:3000/api/v1
+    // On veut: http://localhost:3000/api/upload/image
     const backendBaseUrl = API_BASE_URL.replace('/api/v1', '')
     const uploadUrl = `${backendBaseUrl}/api/upload/image`
     console.log('[Upload API] Calling backend:', uploadUrl)

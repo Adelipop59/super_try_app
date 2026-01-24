@@ -129,7 +129,7 @@ export function PaymentDialog({
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
               <AlertCircleIcon className="h-6 w-6 text-destructive" />
             </div>
-            <h3 className="mt-4 font-semibold text-destructive">Impossible d'activer la campagne</h3>
+            <h3 className="mt-4 font-semibold text-destructive">Impossible d&apos;activer la campagne</h3>
 
             {errorDetails.length > 0 ? (
               <div className="mt-4 w-full max-w-sm">

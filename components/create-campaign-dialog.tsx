@@ -145,6 +145,7 @@ export function CreateCampaignDialog({
   }
 
   const handleUpdateProduct = (updates: Partial<{
+    productName: string
     expectedPrice: number
     shippingCost: number
     reimbursedPrice: boolean
@@ -599,6 +600,21 @@ export function CreateCampaignDialog({
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">EUR</span>
                       </div>
                     </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="product-name" className="text-sm font-medium">
+                      Nom du produit <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="product-name"
+                      placeholder="Ex: Casque Bluetooth XYZ"
+                      value={selectedProduct.productName}
+                      onChange={(e) => handleUpdateProduct({ productName: e.target.value })}
+                      className="h-10"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Le nom exact du produit tel qu&apos;il apparait sur Amazon (pour validation si le prix exact n&apos;est pas trouve)
+                    </p>
                   </div>
                   {/* Cost Summary Card */}
                   <Card className="bg-muted/30 border-muted">
