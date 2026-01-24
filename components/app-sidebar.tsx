@@ -18,6 +18,7 @@ import {
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
+import { HowItWorksDialog } from "@/components/how-it-works-dialog"
 import {
   Sidebar,
   SidebarContent,
@@ -139,6 +140,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navItems} />
+        {(user?.role === 'PRO' || user?.role === 'ADMIN') && (
+          <div className="px-2 py-2">
+            <HowItWorksDialog />
+          </div>
+        )}
         <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
